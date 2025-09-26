@@ -70,6 +70,16 @@
         <div class="bg-white/70 p-6 rounded-lg shadow-sm border border-gray-200">
           <h3 class="text-lg font-semibold text-gray-800 border-b pb-3 mb-6">Detalles de la Cirugía</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            <!-- Mensaje de Inicio -->
+            <div class="form-group md:col-span-2">
+              <label for="mensaje_inicio" class="block text-sm font-medium text-gray-700 mb-1">✉️ Mensaje de Inicio</label>
+              <select id="mensaje_inicio" v-model="formStore.formState.mensaje_inicio" class="w-full p-2 border rounded-md">
+                <option>Estimados, Adjunto detalles de la cirugía programada:</option>
+                <option>Estimados, Informo novedades de la cirugía programada:</option>
+                <option>Equipo, adjunto detalle de cirugía para logística y coordinación:</option>
+                <option>Buen día, comparto información de la siguiente cirugía:</option>
+              </select>
+            </div>
             <!-- Fecha de Cirugía -->
             <div class="form-group">
               <label for="fechaCirugia" class="block text-sm font-medium text-gray-700 mb-1">🗓️ Fecha de Cirugía (*)</label>
@@ -190,7 +200,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue' // Importamos 'computed'
+import { ref, onMounted, computed } from 'vue'
 import html2canvas from 'html2canvas'
 import { useFormStore } from '../stores/formStore'
 import { useClientesStore } from '../stores/clientesStore'
@@ -201,10 +211,12 @@ import TiposCirugiaModal from '../components/TiposCirugiaModal.vue'
 import SolicitudPedidoModal from '../components/SolicitudPedidoModal.vue'
 import DropdownMenu from '../components/DropdownMenu.vue'
 import ReportePreviewDrawer from '../components/ReportePreviewDrawer.vue'
+import { useToastStore } from '../stores/toastStore'
 
 const formStore = useFormStore()
 const clientesStore = useClientesStore()
 const tiposCirugiaStore = useTiposCirugiaStore()
+const toastStore = useToastStore()
 
 const isClientesModalVisible = ref(false)
 const isMaterialesModalVisible = ref(false)
@@ -214,7 +226,7 @@ const isPreviewVisible = ref(false)
 
 const shareOptions = [
   { id: 'whatsapp', label: '📲 Enviar por WhatsApp' },
-  { id: 'email', label: '✉️ Enviar por Email' },
+  { id: 'email', label: '✉️ Enviar por Email (Mailto)' },
   { id: 'print', label: '🖨️ Imprimir / PDF' },
   { id: 'image', label: '🖼️ Guardar como Imagen' },
 ]
@@ -222,14 +234,22 @@ const shareOptions = [
 // Propiedad computada para obtener el cliente completo seleccionado, incluyendo su email.
 const clienteSeleccionado = computed(() => {
   const nombreCliente = formStore.formState.cliente
-  if (!nombreCliente) return null
-  return clientesStore.clientes.find(c => c.nombre === nombreCliente)
+  console.log('clienteSeleccionado (computed): formStore.formState.cliente:', nombreCliente);
+  if (!nombreCliente) {
+    console.log('clienteSeleccionado (computed): No hay cliente seleccionado en el formulario.');
+    return null;
+  }
+  // --- CAMBIO CLAVE: Buscar en clientesStore.allClients ---
+  const foundClient = clientesStore.allClients.find(c => c.nombre === nombreCliente);
+  console.log('clienteSeleccionado (computed): clientesStore.allClients.length:', clientesStore.allClients.length);
+  console.log('clienteSeleccionado (computed): foundClient:', foundClient);
+  return foundClient;
 })
 
 const handleShareOption = (option) => {
   const isFormValid = formStore.validateForm();
   if (!isFormValid) {
-    alert('Por favor, complete los campos requeridos (*) antes de compartir.');
+    toastStore.showToast('Por favor, complete los campos requeridos (*) antes de compartir.', 'warning');
     return;
   }
   switch (option.id) {
@@ -240,11 +260,15 @@ const handleShareOption = (option) => {
   }
 }
 
-onMounted(() => {
-  formStore.initializeForm()
+onMounted(async () => {
+  console.log('ReporteFormView onMounted: Iniciando initializeForm...');
+  await formStore.initializeForm(); // Aseguramos que los clientes (allClients) se carguen
+  console.log('ReporteFormView onMounted: formStore.initializeForm() completado. clientesStore.allClients al finalizar:', clientesStore.allClients);
+  console.log('ReporteFormView onMounted: formStore.sugerencias al finalizar:', formStore.sugerencias);
 })
 
 const handleClienteConfirm = (clienteNombre) => {
+  console.log('handleClienteConfirm: Cliente seleccionado del modal:', clienteNombre);
   formStore.formState.cliente = clienteNombre
   formStore.validateField('cliente')
 }
@@ -261,7 +285,7 @@ const handleTipoCirugiaConfirm = (tipoCirugiaNombre) => {
 const handleConfirmarPedido = (materiales) => {
   const isFormValid = formStore.validateForm()
   if (!isFormValid) {
-    alert('Por favor, complete los campos requeridos (*) del formulario principal antes de solicitar.')
+    toastStore.showToast('Por favor, complete los campos requeridos (*) del formulario principal antes de solicitar.', 'warning');
     return
   }
   
@@ -306,10 +330,11 @@ Saludos cordiales.
   }, 500)
 }
 
-// Nueva función para enviar email directamente al email del cliente
 const handleEnviarACliente = () => {
-  if (!formStore.validateForm()) {
-    alert('Por favor, corrija los errores en el formulario antes de enviar.');
+  console.log('handleEnviarACliente: Botón "Enviar a Cliente" clickeado.');
+  const isFormValid = formStore.validateForm();
+  if (!isFormValid) {
+    toastStore.showToast('Por favor, corrija los errores en el formulario antes de enviar.', 'warning');
     return;
   }
   if (clienteSeleccionado.value && clienteSeleccionado.value.email) {
@@ -317,9 +342,13 @@ const handleEnviarACliente = () => {
     const datos = formStore.formState;
     const asunto = `Reporte Cirugía: ${datos.cliente} - ${datos.paciente}`;
     const mailtoLink = `mailto:${clienteSeleccionado.value.email}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(textoPlano)}`;
+    
+    toastStore.showToast('Abriendo cliente de correo. Verifique los datos.', 'info');
     window.location.href = mailtoLink;
+    console.log('handleEnviarACliente: Mailto abierto a:', clienteSeleccionado.value.email);
   } else {
-    alert('El cliente seleccionado no tiene un email registrado para enviar el reporte.');
+    toastStore.showToast('El cliente seleccionado no tiene un email registrado para enviar el reporte.', 'warning');
+    console.log('handleEnviarACliente: Cliente seleccionado sin email.');
   }
 }
 
@@ -345,48 +374,55 @@ const generarTextoPlano = () => {
 - *Fecha:* ${fechaFormateada}
 - *Lugar:* ${datos.lugar_cirugia || 'No especificado'}
 - *Tipo de Cirugía:* ${datos.tipo_cirugia || 'No especificado'}
-
 *Material Requerido:*
 ${(datos.material || 'No especificado').replace(/^/gm, '- ')}
-
 ${datos.observaciones ? `*Observaciones:*\n${datos.observaciones}\n` : ''}
 ${datos.info_adicional ? `*Info Adicional:*\n${datos.info_adicional}\n` : ''}
   `.trim();
 }
 
 const handleGeneratePreview = () => {
+  console.log('handleGeneratePreview: Botón "Generar Vista Previa" clickeado.');
   const isFormValid = formStore.validateForm();
   if (!isFormValid) {
-    alert('Por favor, corrija los errores en los campos requeridos (*).');
+    toastStore.showToast('Por favor, corrija los errores en los campos requeridos (*).', 'warning');
     return;
   }
   // Antes de mostrar la preview, actualizamos el email del cliente en el formState.
   formStore.formState.email_cliente = clienteSeleccionado.value?.email || null;
   isPreviewVisible.value = true;
+  console.log('handleGeneratePreview: Vista previa abierta. Datos pasados:', formStore.formState);
 }
 
 const handleSaveReport = async () => {
+  console.log('handleSaveReport: Botón "Guardar Reporte" clickeado.');
   const isFormValid = formStore.validateForm();
   if (!isFormValid) {
-    alert('Por favor, corrija los errores en el formulario antes de guardar.');
+    toastStore.showToast('Por favor, corrija los errores en el formulario antes de guardar.', 'warning');
     return;
   }
   const guardadoExitoso = await formStore.saveReport();
   if (guardadoExitoso) {
+    toastStore.showToast('Reporte guardado con éxito!', 'success');
     // Después de guardar, también actualizamos el email del cliente en el formState
     // antes de abrir la preview para que la fecha de envío y el email se muestren.
     formStore.formState.email_cliente = clienteSeleccionado.value?.email || null;
     isPreviewVisible.value = true;
+    console.log('handleSaveReport: Reporte guardado y vista previa abierta.');
+  } else {
+    toastStore.showToast('Error al guardar el reporte.', 'error');
   }
 }
 
 const handleWhatsApp = () => {
+  console.log('handleWhatsApp: Opción WhatsApp seleccionada.');
   const textoPlano = generarTextoPlano()
   const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(textoPlano)}`
   window.open(url, '_blank')
 }
 
 const handleEmail = () => {
+  console.log('handleEmail: Opción Email (Mailto) seleccionada.');
   const textoPlano = generarTextoPlano()
   const datos = formStore.formState
   const asunto = `Reporte Cirugía: ${datos.cliente} - ${datos.paciente}`
@@ -395,22 +431,26 @@ const handleEmail = () => {
 }
 
 const handleLimpiar = () => {
+  console.log('handleLimpiar: Botón "Limpiar Formulario" clickeado.');
   formStore.resetForm()
   isPreviewVisible.value = false
+  toastStore.showToast('Formulario limpiado.', 'info');
 }
 
 const handleImprimir = () => {
-  alert("La función de imprimir directamente desde el drawer se implementará en una futura versión. Por ahora, puede copiar el texto y pegarlo para imprimir.");
+  console.log('handleImprimir: Opción Imprimir seleccionada.');
+  toastStore.showToast("La impresión directa desde el drawer se implementará en una futura versión. Por ahora, copie el HTML y péguelo en un editor para imprimir.", 'info');
 }
 
 const handleGuardarImagen = async () => {
-  // Asegurarse de que el drawer esté visible y renderizado antes de capturar la imagen.
+  console.log('handleGuardarImagen: Opción Guardar Imagen seleccionada.');
   isPreviewVisible.value = true;
-  await new Promise(resolve => setTimeout(resolve, 300)); // Esperar la animación del drawer
-
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
   const drawerContent = document.querySelector('.absolute.top-0.right-0 .reporte-box');
   if (!drawerContent) {
-    alert('Error: Contenedor de vista previa no encontrado.');
+    toastStore.showToast('Error: Contenedor de vista previa no encontrado para la imagen.', 'error');
+    console.error('handleGuardarImagen: Contenedor de vista previa no encontrado.');
     return;
   }
 
@@ -421,9 +461,11 @@ const handleGuardarImagen = async () => {
     link.download = `reporte_${datos.cliente || 'sinc'}_${datos.paciente || 'sinp'}.png`
     link.href = canvas.toDataURL('image/png')
     link.click()
+    toastStore.showToast('Imagen del reporte descargada.', 'success');
+    console.log('handleGuardarImagen: Imagen descargada.');
   } catch (error) {
     console.error('Error al generar la imagen:', error)
-    alert('Ocurrió un error al generar la imagen.')
+    toastStore.showToast('Ocurrió un error al generar la imagen.', 'error');
   }
 }
 </script>

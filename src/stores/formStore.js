@@ -3,11 +3,11 @@
 import { defineStore } from 'pinia'
 import { reactive } from 'vue'
 import { supabase } from '../supabase'
+
 import { useClientesStore } from './clientesStore'
 import { useMaterialesStore } from './materialesStore'
 import { useTiposCirugiaStore } from './tiposCirugiaStore'
 
-// Función auxiliar para obtener la fecha de hoy en formato YYYY-MM-DD
 const getTodayDateString = () => {
   const today = new Date();
   const offset = today.getTimezoneOffset();
@@ -28,7 +28,8 @@ export const useFormStore = defineStore('form', () => {
     material: '',
     observaciones: '',
     info_adicional: '',
-    fecha_envio: null
+    fecha_envio: null,
+    email_cliente: null,
   })
 
   const sugerencias = reactive({
@@ -61,46 +62,76 @@ export const useFormStore = defineStore('form', () => {
   }
 
   const saveSugerencia = async (campo, valor) => {
-    if (!valor || valor.trim() === '') return
+    if (!valor || valor.trim() === '') {
+      console.log(`saveSugerencia: No se guarda sugerencia para ${campo} porque está vacía.`);
+      return;
+    }
     const valorLimpio = valor.trim()
-    const { error } = await supabase
-      .from('sugerencias')
-      .upsert(
-        { campo: campo, valor: valorLimpio },
-        { onConflict: 'campo, valor', ignoreDuplicates: true }
-      )
-    if (error) console.error(`Error guardando sugerencia para ${campo}:`, error)
+    try {
+      const { error } = await supabase
+        .from('sugerencias')
+        .upsert(
+          { campo: campo, valor: valorLimpio },
+          { onConflict: 'campo, valor', ignoreDuplicates: true }
+        );
+      if (error) {
+        console.error(`saveSugerencia: Error guardando sugerencia para ${campo} con valor "${valorLimpio}":`, error);
+      } else {
+        console.log(`saveSugerencia: Sugerencia para ${campo} con valor "${valorLimpio}" guardada/ignorada exitosamente.`);
+        // Después de guardar, si es nueva, la añadimos al estado local para que se vea reflejada.
+        if (campo === 'medico' && !sugerencias.medicos.includes(valorLimpio)) sugerencias.medicos.push(valorLimpio);
+        if (campo === 'instrumentador' && !sugerencias.instrumentadores.includes(valorLimpio)) sugerencias.instrumentadores.push(valorLimpio);
+        if (campo === 'lugar_cirugia' && !sugerencias.lugaresCirugia.includes(valorLimpio)) sugerencias.lugaresCirugia.push(valorLimpio);
+      }
+    } catch (error) {
+      console.error(`saveSugerencia: Error inesperado al guardar sugerencia para ${campo} con valor "${valorLimpio}":`, error);
+    }
   }
 
   const initializeForm = async () => {
-    useClientesStore().fetchClientes()
-    useMaterialesStore().fetchMateriales()
-    useTiposCirugiaStore().fetchTiposCirugia()
+    const clientesStore = useClientesStore()
+    const materialesStore = useMaterialesStore()
+    const tiposCirugiaStore = useTiposCirugiaStore()
+
+    await clientesStore.fetchAllClients()
+    await materialesStore.fetchMateriales()
+    await tiposCirugiaStore.fetchTiposCirugia()
+
     try {
+      console.log('initializeForm: Intentando cargar sugerencias de Supabase...');
       const { data, error } = await supabase.from('sugerencias').select('campo, valor')
       if (error) throw error
+
+      console.log('initializeForm: Sugerencias recibidas de Supabase:', data);
+
       sugerencias.medicos = []
       sugerencias.instrumentadores = []
       sugerencias.lugaresCirugia = []
+
       data.forEach(item => {
         if (item.campo === 'medico') sugerencias.medicos.push(item.valor)
-        if (item.campo === 'instrumentador') sugerencias.instrumentadores.push(item.valor)
-        if (item.campo === 'lugar_cirugia') sugerencias.lugaresCirugia.push(item.valor)
+        else if (item.campo === 'instrumentador') sugerencias.instrumentadores.push(item.valor)
+        else if (item.campo === 'lugar_cirugia') sugerencias.lugaresCirugia.push(item.valor)
       })
+      console.log('initializeForm: Sugerencias pobladas en el store:', sugerencias);
+
     } catch (error) {
-      console.error('Error al cargar las sugerencias:', error.message)
+      console.error('initializeForm: Error al cargar las sugerencias:', error.message)
     }
+    console.log('formStore initializeForm: Clientes cargados para el formulario (ALL):', clientesStore.allClients);
   }
 
   const saveReport = async () => {
     try {
       formState.fecha_envio = getTodayDateString();
       
-      const reportData = { ...formState }
-      const { data, error } = await supabase.from('reportes').insert([reportData]).select()
+      const reportDataToSave = { ...formState };
+      delete reportDataToSave.email_cliente;
+
+      const { data, error } = await supabase.from('reportes').insert([reportDataToSave]).select()
       if (error) throw error
 
-      alert('¡Reporte guardado con éxito!')
+      console.log('saveReport: Reporte guardado con éxito en Supabase:', data);
       
       await Promise.all([
         saveSugerencia('medico', formState.medico),
@@ -109,8 +140,7 @@ export const useFormStore = defineStore('form', () => {
       ])
       return true
     } catch (error) {
-      console.error('Error al guardar el reporte:', error.message)
-      alert('Error al guardar el reporte.')
+      console.error('saveReport: Error al guardar el reporte:', error.message)
       return false
     }
   }
@@ -123,8 +153,11 @@ export const useFormStore = defineStore('form', () => {
         .order('created_at', { ascending: false })
         .limit(1)
         .single()
+
       if (error) throw error
+
       if (data) {
+        console.log('loadLastReport: Último reporte cargado:', data);
         formState.mensaje_inicio = data.mensaje_inicio || 'Estimados, Adjunto detalles de la cirugía programada:'
         formState.cliente = data.cliente
         formState.paciente = data.paciente
@@ -136,13 +169,12 @@ export const useFormStore = defineStore('form', () => {
         formState.material = data.material
         formState.observaciones = data.observaciones
         formState.info_adicional = data.info_adicional
-        alert('Último reporte cargado.')
+        formState.fecha_envio = data.fecha_envio
       } else {
-        alert('No se encontraron reportes anteriores.')
+        console.log('loadLastReport: No se encontraron reportes anteriores.');
       }
     } catch (error) {
-      console.error('Error al cargar el último reporte:', error.message)
-      alert('No se pudo cargar el último reporte.')
+      console.error('loadLastReport: Error al cargar el último reporte:', error.message)
     }
   }
 
@@ -156,21 +188,21 @@ export const useFormStore = defineStore('form', () => {
         .single()
       if (error) throw error
       if (data && data.material) {
+        console.log('loadLastMaterial: Material del último reporte cargado:', data.material);
         const valorActual = formState.material.trim()
         formState.material = valorActual 
           ? `${valorActual}\n${data.material}`
           : data.material
-        alert('Material del último reporte añadido.')
       } else {
-        alert('No se encontró material en el último reporte.')
+        console.log('loadLastMaterial: No se encontró material en el último reporte.');
       }
     } catch (error) {
-      console.error('Error al cargar el último material:', error.message)
-      alert('No se pudo cargar el material del último reporte.')
+      console.error('loadLastMaterial: Error al cargar el último material:', error.message)
     }
   }
 
   const resetForm = () => {
+    console.log('resetForm: Limpiando formulario...');
     formState.mensaje_inicio = 'Estimados, Adjunto detalles de la cirugía programada:'
     formState.cliente = null
     formState.paciente = ''
@@ -183,7 +215,8 @@ export const useFormStore = defineStore('form', () => {
     formState.observaciones = ''
     formState.info_adicional = ''
     formState.fecha_envio = null
-    
+    formState.email_cliente = null;
+
     Object.keys(validationErrors).forEach(key => {
       validationErrors[key] = null
     })

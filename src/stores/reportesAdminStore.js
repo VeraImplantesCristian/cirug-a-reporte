@@ -1,53 +1,153 @@
 // src/stores/reportesAdminStore.js
 
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed, reactive } from 'vue' // Importamos 'reactive' para los filtros
 import { supabase } from '../supabase'
 
-// Definimos el store con un nombre único: 'reportesAdmin'.
 export const useReportesAdminStore = defineStore('reportesAdmin', () => {
   // --- STATE ---
-  // 'reportes' es una variable reactiva que contendrá la lista de todos los reportes.
   const reportes = ref([])
-  // 'isLoading' nos ayudará a mostrar un indicador de carga en la interfaz.
   const isLoading = ref(false)
+
+  // --- ESTADO PARA FILTROS Y PAGINACIÓN ---
+  const filters = reactive({
+    searchTerm: '', // Búsqueda general por cliente, paciente, médico
+    fechaDesde: '',
+    fechaHasta: '',
+    clienteFiltro: '',
+    medicoFiltro: '',
+  })
+  const currentPage = ref(1)
+  const rowsPerPage = ref(10) // 10 reportes por página
+  const totalReports = ref(0)
+
+  // --- ESTADO PARA OPCIONES DE FILTRO (para selectores dinámicos) ---
+  const availableClients = ref([])
+  const availableDoctors = ref([])
+  const availableTypes = ref([])
+
+  // --- GETTERS (PROPIEDADES COMPUTADAS) ---
+  const totalPages = computed(() => Math.ceil(totalReports.value / rowsPerPage.value))
 
   // --- ACTIONS ---
 
-  // Acción para obtener los reportes de la base de datos.
-  const fetchReportes = async () => {
-    // Ponemos isLoading en true al empezar la carga.
-    isLoading.value = true
+  // Acción para obtener opciones únicas para los filtros (clientes, médicos, tipos)
+  const fetchFilterOptions = async () => {
     try {
-      // Usamos el cliente de Supabase para hacer una consulta a la tabla 'reportes'.
-      // .select('*') trae todas las columnas.
-      // .order('created_at', { ascending: false }) ordena del más nuevo al más viejo.
-      // .limit(50) para no traer toda la base de datos de golpe, solo los últimos 50.
+      // Optenemos todos los reportes para extraer las opciones únicas
       const { data, error } = await supabase
         .from('reportes')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50)
+        .select('cliente, medico, tipo_cirugia');
 
-      // Si hay un error en la consulta, lo lanzamos para que sea capturado por el catch.
+      if (error) throw error;
+
+      // Extraemos y ordenamos valores únicos
+      availableClients.value = [...new Set(data.map(r => r.cliente).filter(Boolean))].sort();
+      availableDoctors.value = [...new Set(data.map(r => r.medico).filter(Boolean))].sort();
+      availableTypes.value = [...new Set(data.map(r => r.tipo_cirugia).filter(Boolean))].sort();
+
+    } catch (error) {
+      console.error('Error fetching filter options:', error.message);
+      availableClients.value = [];
+      availableDoctors.value = [];
+      availableTypes.value = [];
+    }
+  }
+
+
+  // Acción principal para obtener los reportes con filtros y paginación
+  const fetchReportes = async () => {
+    isLoading.value = true
+    try {
+      let query = supabase.from('reportes').select('*', { count: 'exact' })
+
+      // Aplicar filtros
+      if (filters.searchTerm) {
+        // Búsqueda insensible a mayúsculas/minúsculas y parcial (ilike)
+        query = query.or(
+          `cliente.ilike.%${filters.searchTerm}%,paciente.ilike.%${filters.searchTerm}%,medico.ilike.%${filters.searchTerm}%`
+        )
+      }
+      if (filters.fechaDesde) {
+        query = query.gte('fecha_cirugia', filters.fechaDesde)
+      }
+      if (filters.fechaHasta) {
+        query = query.lte('fecha_cirugia', filters.fechaHasta)
+      }
+      if (filters.clienteFiltro) {
+        query = query.eq('cliente', filters.clienteFiltro)
+      }
+      if (filters.medicoFiltro) {
+        query = query.eq('medico', filters.medicoFiltro)
+      }
+
+      // Ordenar y paginar
+      const from = (currentPage.value - 1) * rowsPerPage.value
+      const to = from + rowsPerPage.value - 1
+
+      query = query
+        .order('fecha_cirugia', { ascending: false }) // Ordenar por fecha de cirugía (más reciente primero)
+        .order('created_at', { ascending: false }) // Desempate por fecha de creación
+        .range(from, to)
+
+      const { data, error, count } = await query
+
       if (error) throw error
 
-      // Si la consulta es exitosa, actualizamos nuestro estado con los datos.
       reportes.value = data
+      totalReports.value = count || 0 // Asegurar que count no sea null
     } catch (error) {
       console.error('Error al obtener los reportes:', error.message)
-      // En caso de error, dejamos la lista vacía.
       reportes.value = []
+      totalReports.value = 0
     } finally {
-      // Al finalizar (con éxito o error), ponemos isLoading en false.
       isLoading.value = false
     }
   }
 
-  // Exponemos el estado y las acciones para que los componentes puedan usarlos.
+  // Acción para cambiar de página
+  const nextPage = () => {
+    if (currentPage.value < totalPages.value) {
+      currentPage.value++
+      fetchReportes() // Volver a cargar con la nueva página
+    }
+  }
+
+  // Acción para volver a la página anterior
+  const prevPage = () => {
+    if (currentPage.value > 1) {
+      currentPage.value--
+      fetchReportes() // Volver a cargar con la nueva página
+    }
+  }
+
+  // Acción para resetear todos los filtros
+  const resetFilters = () => {
+    filters.searchTerm = ''
+    filters.fechaDesde = ''
+    filters.fechaHasta = ''
+    filters.clienteFiltro = ''
+    filters.medicoFiltro = ''
+    currentPage.value = 1 // Volver a la primera página al resetear
+    fetchReportes()
+  }
+
+  // Exponemos todo lo necesario
   return {
     reportes,
     isLoading,
-    fetchReportes
+    filters,
+    currentPage,
+    rowsPerPage,
+    totalReports,
+    totalPages,
+    availableClients,
+    availableDoctors,
+    availableTypes,
+    fetchReportes,
+    fetchFilterOptions,
+    nextPage,
+    prevPage,
+    resetFilters,
   }
 })

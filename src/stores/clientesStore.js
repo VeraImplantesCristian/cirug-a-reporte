@@ -6,68 +6,103 @@ import { supabase } from '../supabase'
 
 export const useClientesStore = defineStore('clientes', () => {
   // --- STATE ---
+  // 'clientes' para la paginación en el admin
   const clientes = ref([])
-  // --- NUEVO ESTADO PARA PAGINACIÓN ---
+  // --- NUEVO ESTADO: 'allClients' para la lista completa (para modales, etc.) ---
+  const allClients = ref([]) 
+
+  // Estado para paginación
   const currentPage = ref(1)
-  const rowsPerPage = ref(10) // Mostraremos 10 clientes por página
+  const rowsPerPage = ref(10)
   const totalClientes = ref(0)
 
   // --- ACTIONS ---
 
-  // Acción para obtener los clientes de una página específica.
+  /**
+   * Carga una página específica de clientes con paginación.
+   * Utilizado principalmente por la vista de administración.
+   * @param {number} page - El número de página a cargar.
+   */
   const fetchClientes = async (page = 1) => {
     try {
       currentPage.value = page
       const from = (page - 1) * rowsPerPage.value
       const to = from + rowsPerPage.value - 1
 
-      // Hacemos la consulta a Supabase con rango y conteo.
       const { data, error, count } = await supabase
         .from('clientes')
-        .select('id, nombre, email', { count: 'exact' }) // Pedimos el conteo total
+        .select('id, nombre, email', { count: 'exact' })
         .order('nombre', { ascending: true })
-        .range(from, to) // Pedimos solo el rango de la página actual
+        .range(from, to)
 
       if (error) throw error
 
       clientes.value = data
-      // Guardamos el conteo total de clientes.
-      totalClientes.value = count
+      totalClientes.value = count || 0
     } catch (error) {
-      console.error('Error al obtener los clientes:', error.message)
+      console.error('Error al obtener los clientes paginados:', error.message)
     }
   }
 
-  // Las acciones de añadir, actualizar y eliminar ahora llaman a fetchClientes
-  // para recargar la página actual y mantener la consistencia.
+  /**
+   * Carga *todos* los clientes sin paginación.
+   * Utilizado principalmente por los modales de selección en el formulario principal.
+   */
+  const fetchAllClients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clientes')
+        .select('id, nombre, email')
+        .order('nombre', { ascending: true }) // Aseguramos que la lista completa también esté ordenada
+
+      if (error) throw error
+      allClients.value = data
+    } catch (error) {
+      console.error('Error al obtener todos los clientes:', error.message)
+    }
+  }
+
+  /**
+   * Añade un nuevo cliente y recarga ambas listas.
+   * @param {Object} clienteData - Datos del nuevo cliente (nombre, email).
+   */
   const addCliente = async (clienteData) => {
     try {
       const { error } = await supabase.from('clientes').insert(clienteData)
       if (error) throw error
-      // Recargamos la primera página para ver el nuevo cliente.
-      await fetchClientes(1)
+      await fetchClientes(currentPage.value) // Recargar la página actual paginada
+      await fetchAllClients() // Recargar la lista completa
     } catch (error) {
       console.error('Error al añadir el cliente:', error.message)
     }
   }
 
+  /**
+   * Actualiza un cliente existente y recarga ambas listas.
+   * @param {number} idCliente - ID del cliente a actualizar.
+   * @param {Object} updateData - Datos a actualizar.
+   */
   const updateCliente = async (idCliente, updateData) => {
     try {
       const { error } = await supabase.from('clientes').update(updateData).eq('id', idCliente)
       if (error) throw error
-      // Recargamos la página actual para ver los cambios.
-      await fetchClientes(currentPage.value)
+      await fetchClientes(currentPage.value) // Recargar la página actual paginada
+      await fetchAllClients() // Recargar la lista completa
     } catch (error) {
       console.error('Error al actualizar el cliente:', error.message)
     }
   }
 
+  /**
+   * Elimina un cliente y recarga ambas listas.
+   * @param {number} idCliente - ID del cliente a eliminar.
+   */
   const deleteCliente = async (idCliente) => {
     try {
       const { error } = await supabase.from('clientes').delete().eq('id', idCliente)
       if (error) throw error
-      // Recargamos la página actual.
-      await fetchClientes(currentPage.value)
+      await fetchClientes(currentPage.value) // Recargar la página actual paginada
+      await fetchAllClients() // Recargar la lista completa
     } catch (error) {
       console.error('Error al eliminar el cliente:', error.message)
     }
@@ -75,10 +110,12 @@ export const useClientesStore = defineStore('clientes', () => {
 
   return {
     clientes,
+    allClients, // --- EXPONEMOS allClients ---
     currentPage,
     rowsPerPage,
     totalClientes,
     fetchClientes,
+    fetchAllClients, // --- EXPONEMOS fetchAllClients ---
     addCliente,
     updateCliente,
     deleteCliente,
