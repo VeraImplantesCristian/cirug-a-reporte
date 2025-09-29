@@ -91,7 +91,7 @@ const generarTextoPlanoCompleto = (datos) => {
     : '';
 
   const generatedText = `
-*Reporte de Cirugía*
+- Reporte de Cirugía
 ${datos.mensaje_inicio || 'Detalles de la cirugía programada:'}
 - Cliente: ${datos.cliente || 'No especificado'}${emailClienteTexto}
 - Paciente: ${datos.paciente || 'No especificado'}
@@ -100,7 +100,7 @@ ${datos.mensaje_inicio || 'Detalles de la cirugía programada:'}
 - Fecha de Cirugía: ${fechaCirugiaFormateada}
 - Lugar: ${datos.lugar_cirugia || 'No especificado'}
 - Tipo de Cirugía: ${datos.tipo_cirugia || 'No especificado'}
-${fechaEnvioFormateada ? `-*Fecha de Envío: ${fechaEnvioFormateada}` : ''}
+${fechaEnvioFormateada ? `-* Fecha de Envío: ${fechaEnvioFormateada}` : ''}
 
 *Material Requerido:*
 ${(datos.material || '').split('\n').filter(l => l.trim() !== '').map(l => `- ${l.trim()}`).join('\n') || '- No especificado'}
@@ -108,7 +108,7 @@ ${(datos.material || '').split('\n').filter(l => l.trim() !== '').map(l => `- ${
 ${datos.observaciones ? `Observaciones:\n${datos.observaciones}\n` : ''}
 ${datos.info_adicional ? `Info Adicional:\n${datos.info_adicional}\n` : ''}
 
-Saludos, quedo al pendiente.
+Saludos, quedo al pendiente. Equipo de Coordinación Districorr.
   `.trim();
   console.log('generarTextoPlanoCompleto: Texto plano generado:', generatedText);
   return generatedText;
