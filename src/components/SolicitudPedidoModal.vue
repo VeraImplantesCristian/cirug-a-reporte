@@ -6,6 +6,7 @@
     title="Solicitar Pedido de Material"
   >
     <template #body>
+<<<<<<< HEAD
       <!-- Mostramos la información clave del reporte principal para el contexto -->
       <div class="text-sm bg-blue-50 p-3 rounded-md mb-4 border border-blue-200">
         <p><span class="font-semibold">Cliente (ART/Aseguradora):</span> {{ formStore.formState.cliente || 'N/E' }}</p>
@@ -15,6 +16,10 @@
 
       <p class="text-sm text-gray-600 mb-4">
         Añada los materiales que necesita solicitar. **Esta lista debe ser llenada con lo que se requiere pedir a DistriTrack, NO es una copia del reporte.**
+=======
+      <p class="text-sm text-gray-600 mb-4">
+        Añada los materiales que necesita solicitar. La información del paciente, médico y cliente se tomará del formulario principal.
+>>>>>>> 6ad51bb65c2211771aa865b0b46f5495626854f6
       </p>
       
       <!-- Formulario para añadir un nuevo material a la solicitud -->
@@ -74,6 +79,7 @@
 </template>
 
 <script setup>
+<<<<<<< HEAD
 import { ref, watch } from 'vue'
 import BaseModal from './BaseModal.vue'
 import { useFormStore } from '../stores/formStore' 
@@ -81,11 +87,18 @@ import { useFormStore } from '../stores/formStore'
 const formStore = useFormStore()
 
 const props = defineProps({
+=======
+import { ref } from 'vue'
+import BaseModal from './BaseModal.vue'
+
+defineProps({
+>>>>>>> 6ad51bb65c2211771aa865b0b46f5495626854f6
   modelValue: { type: Boolean, required: true }
 })
 const emit = defineEmits(['update:modelValue', 'confirmar-pedido'])
 
 // Estado local para la lista de materiales y el formulario de añadir.
+<<<<<<< HEAD
 // La lista se mantiene vacía al inicio.
 const materialesSolicitados = ref([])
 const nuevoMaterial = ref({ description: '', quantity: 1 })
@@ -101,6 +114,11 @@ watch(() => props.modelValue, (isOpening) => {
 });
 
 
+=======
+const materialesSolicitados = ref([])
+const nuevoMaterial = ref({ description: '', quantity: 1 })
+
+>>>>>>> 6ad51bb65c2211771aa865b0b46f5495626854f6
 const agregarMaterial = () => {
   if (nuevoMaterial.value.description.trim() && nuevoMaterial.value.quantity > 0) {
     materialesSolicitados.value.push({ ...nuevoMaterial.value })
@@ -116,7 +134,11 @@ const eliminarMaterial = (index) => {
 
 const handleConfirmar = () => {
   if (materialesSolicitados.value.length === 0) {
+<<<<<<< HEAD
     alert('Debe añadir al menos un material a la lista de pedido.')
+=======
+    alert('Debe añadir al menos un material a la lista.')
+>>>>>>> 6ad51bb65c2211771aa865b0b46f5495626854f6
     return
   }
   // Emitir la lista de materiales al componente padre.

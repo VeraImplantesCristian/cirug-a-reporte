@@ -6,6 +6,7 @@
     title="Seleccionar Cliente"
   >
     <template #body>
+<<<<<<< HEAD
       <!-- Campo de búsqueda -->
       <input
         type="text"
@@ -30,11 +31,34 @@
         <li v-if="filteredClientes.length === 0" class="p-2 text-gray-500 text-center">
           No se encontraron clientes.
         </li>
+=======
+      <input
+        type="text"
+        v-model="searchTerm"
+        placeholder="Buscar cliente..."
+        class="w-full p-2 border border-gray-300 rounded-md mb-4 sticky top-0 bg-white"
+      />
+
+      <ul class="space-y-1">
+        <!-- CAMBIO CLAVE: Iteramos sobre allClients -->
+        <li v-for="cliente in filteredClientes" :key="cliente.id">
+          <div
+            @click="handleSelect(cliente)"
+            class="p-2 rounded-md cursor-pointer hover:bg-blue-100 text-gray-800"
+          >
+            {{ cliente.nombre }}
+            <span v-if="cliente.email" class="text-xs text-gray-500 ml-2">({{ cliente.email }})</span>
+          </div>
+        </li>
+>>>>>>> 6ad51bb65c2211771aa865b0b46f5495626854f6
       </ul>
     </template>
 
     <template #footer>
+<<<<<<< HEAD
       <!-- Botón para cerrar el modal sin seleccionar nada -->
+=======
+>>>>>>> 6ad51bb65c2211771aa865b0b46f5495626854f6
       <button @click="$emit('update:modelValue', false)" class="bg-gray-200 px-4 py-2 rounded-md hover:bg-gray-300">
         Cancelar
       </button>
@@ -47,6 +71,7 @@ import { ref, computed } from 'vue'
 import BaseModal from './BaseModal.vue'
 import { useClientesStore } from '../stores/clientesStore'
 
+<<<<<<< HEAD
 // Definimos las props que el componente puede recibir del padre.
 defineProps({
   modelValue: { type: Boolean, required: true } // Controla la visibilidad con v-model
@@ -89,5 +114,29 @@ const handleSelect = (cliente) => {
   emit('update:modelValue', false)
   // Limpiamos el término de búsqueda para la próxima vez que se abra el modal.
   searchTerm.value = ''
+=======
+defineProps({
+  modelValue: { type: Boolean, required: true }
+})
+const emit = defineEmits(['update:modelValue', 'confirmar'])
+
+const clientesStore = useClientesStore()
+const searchTerm = ref('')
+
+const filteredClientes = computed(() => {
+  const term = searchTerm.value.toLowerCase()
+  // CAMBIO CLAVE: Filtramos sobre allClients
+  if (!term) return clientesStore.allClients 
+
+  return clientesStore.allClients.filter(
+    cliente => cliente.nombre.toLowerCase().includes(term) || (cliente.email && cliente.email.toLowerCase().includes(term))
+  )
+})
+
+const handleSelect = (cliente) => {
+  emit('confirmar', cliente.nombre)
+  emit('update:modelValue', false)
+  searchTerm.value = '' // Limpiamos el término de búsqueda al seleccionar
+>>>>>>> 6ad51bb65c2211771aa865b0b46f5495626854f6
 }
 </script>

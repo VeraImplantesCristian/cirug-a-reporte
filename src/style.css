@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 /* 🎨 --- TOKENS DE DISEÑO GLOBALES --- 🎨 */
 :root {
@@ -59,6 +60,9 @@
   }
 }
 
+=======
+/* src/style.css */
+>>>>>>> 6ad51bb65c2211771aa865b0b46f5495626854f6
 
 @tailwind base;
 @tailwind components;
