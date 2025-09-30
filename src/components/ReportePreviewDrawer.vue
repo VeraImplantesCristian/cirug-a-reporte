@@ -73,7 +73,7 @@ const generarTextoPlanoCompleto = (datos) => {
   
   const seccionTexto = (titulo, contenido) => {
     if (!contenido) return ''
-    return `\n\n--- ${titulo.toUpperCase()} ---\n${contenido}`
+    return `\n\n- ${titulo.toUpperCase()} \n${contenido}`
   }
 
   const materialTexto = (datos.material || '')
@@ -84,7 +84,7 @@ const generarTextoPlanoCompleto = (datos) => {
 
   return `
 
-📆 REPORTE DE CIRUGÍA ⋯⋯
+📆 REPORTE DE CIRUGÍA 
 
 ${datos.mensaje_inicio || ''}
 
@@ -97,7 +97,7 @@ ${datos.email_cliente ? `Email Cliente: ${datos.email_cliente}` : ''}
 ▪︎ Instrumentador: ${datos.instrumentador || 'N/E'}
 ▪︎ Fecha de Cirugía: ${fechaCirugiaFormateada}
 ▪︎ Lugar: ${datos.lugar_cirugia || 'N/E'}
-▪︎Tipo de Cirugía: ${datos.tipo_cirugia || 'N/E'}
+▪︎ Tipo de Cirugía: ${datos.tipo_cirugia || 'N/E'}
 ${fechaEnvioFormateada ? `▪︎ Fecha de Envío: ${fechaEnvioFormateada}` : ''}
 
 ➡︎ MATERIAL REQUERIDO 
