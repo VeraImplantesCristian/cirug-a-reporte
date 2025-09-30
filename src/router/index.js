@@ -10,7 +10,6 @@ const router = createRouter({
       name: 'home',
       component: () => import('../views/ReporteFormView.vue')
     },
-<<<<<<< HEAD
     // RUTA DASHBOARD
     {
       path: '/dashboard',
@@ -23,8 +22,6 @@ const router = createRouter({
       name: 'deposito',
       component: () => import('../views/PackingListView.vue')
     },
-=======
->>>>>>> 6ad51bb65c2211771aa865b0b46f5495626854f6
     // Rutas de Administración de Datos Maestros
     {
       path: '/admin/clientes',
@@ -41,7 +38,6 @@ const router = createRouter({
       name: 'admin-tipos-cirugia',
       component: () => import('../views/AdminTiposCirugiaView.vue')
     },
-<<<<<<< HEAD
     {
       path: '/admin/reportes',
       name: 'admin-reportes',
@@ -67,15 +63,6 @@ const router = createRouter({
       path: '/admin/sugerencias/nosocomios',
       name: 'admin-sugerencias-nosocomios',
       component: () => import('../views/AdminNosocomiosView.vue')
-=======
-    // --- NUEVA RUTA AÑADIDA ---
-    // Esta es la ruta para nuestro nuevo panel de visualización de reportes.
-    {
-      path: '/admin/reportes',
-      name: 'admin-reportes',
-      // El componente que se renderizará, usando carga diferida.
-      component: () => import('../views/AdminReportesView.vue')
->>>>>>> 6ad51bb65c2211771aa865b0b46f5495626854f6
     }
   ]
 })
