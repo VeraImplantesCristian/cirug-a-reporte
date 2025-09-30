@@ -83,29 +83,30 @@ const generarTextoPlanoCompleto = (datos) => {
     .join('\n') || '- No especificado'
 
   return `
-================================
-REPORTE DE CIRUGÍA
-================================
+
+📆 REPORTE DE CIRUGÍA ⋯⋯
 
 ${datos.mensaje_inicio || ''}
 
---- DATOS PRINCIPALES ---
-Cliente: ${datos.cliente || 'N/E'}
-${datos.email_cliente ? `Email Cliente: ${datos.email_cliente}` : ''}
-Paciente: ${datos.paciente || 'N/E'}
-Médico: ${datos.medico || 'N/E'}
-Instrumentador: ${datos.instrumentador || 'N/E'}
-Fecha de Cirugía: ${fechaCirugiaFormateada}
-Lugar: ${datos.lugar_cirugia || 'N/E'}
-Tipo de Cirugía: ${datos.tipo_cirugia || 'N/E'}
-${fechaEnvioFormateada ? `Fecha de Envío: ${fechaEnvioFormateada}` : ''}
+➡︎ DATOS PRINCIPALES 
 
---- MATERIAL REQUERIDO ---
+▪︎ Cliente: ${datos.cliente || 'N/E'}
+${datos.email_cliente ? `Email Cliente: ${datos.email_cliente}` : ''}
+▪︎ Paciente: ${datos.paciente || 'N/E'}
+▪︎ Médico: ${datos.medico || 'N/E'}
+▪︎ Instrumentador: ${datos.instrumentador || 'N/E'}
+▪︎ Fecha de Cirugía: ${fechaCirugiaFormateada}
+▪︎ Lugar: ${datos.lugar_cirugia || 'N/E'}
+▪︎Tipo de Cirugía: ${datos.tipo_cirugia || 'N/E'}
+${fechaEnvioFormateada ? `▪︎ Fecha de Envío: ${fechaEnvioFormateada}` : ''}
+
+➡︎ MATERIAL REQUERIDO 
 ${materialTexto}
-${seccionTexto('Observaciones', datos.observaciones)}
-${seccionTexto('Información Adicional', datos.info_adicional)}
+${seccionTexto('▪︎ Observaciones', datos.observaciones)}
+${seccionTexto('▪︎ Información Adicional', datos.info_adicional)}
 
 Saludos cordiales.
+Equipo de Coordinación Districorr.
   `.trim().replace(/\n\n\n/g, '\n\n'); // Limpia saltos de línea extra
 }
 
