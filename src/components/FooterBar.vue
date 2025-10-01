@@ -20,8 +20,8 @@
           </button>
           
           <!-- CAMBIO CLAVE: Botón Principal: GUARDAR (Verde) -->
-          <button @click="triggerAndLog('save')" class="btn-primary bg-green-600 text-sm px-2 py-1.5 shrink-0">
-            💾 Guardar
+          <button @click="triggerAndLog('save')" class="btn-primary bg-green-600 text-sm px-1 py-1.5 shrink-0">
+            💾 Guardar/Ver
           </button>
 
           <!-- Botón de Compartir (Menú) -->
