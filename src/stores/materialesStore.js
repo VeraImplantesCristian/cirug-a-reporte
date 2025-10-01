@@ -1,7 +1,7 @@
 // src/stores/materialesStore.js
 
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue' // Añadimos computed
+import { ref, computed } from 'vue'
 import { supabase } from '../supabase'
 
 export const useMaterialesStore = defineStore('materiales', () => {
@@ -12,15 +12,15 @@ export const useMaterialesStore = defineStore('materiales', () => {
   
   // Estado de Paginación (para la vista de administración)
   const currentPage = ref(1)
-  const rowsPerPage = ref(15) // Aumentamos la paginación a 15 por página
+  const rowsPerPage = ref(15) // Pagina por 15 ítems en la tabla de administración
 
   // --- GETTERS ---
   
-  // Filtra los materiales por término de búsqueda
+  // Lista de materiales filtrados por el término de búsqueda
   const materialesFiltrados = computed(() => {
     const query = searchQuery.value.toLowerCase().trim()
     if (!query) {
-      return todosMateriales.value // Si no hay búsqueda, retorna todo
+      return todosMateriales.value 
     }
     return todosMateriales.value.filter(material => 
       material.code?.toLowerCase().includes(query) ||
@@ -29,7 +29,7 @@ export const useMaterialesStore = defineStore('materiales', () => {
     )
   })
 
-  // Agrupa los materiales (paginados/filtrados) por categoría.
+  // Agrupa los materiales (paginados/filtrados) por categoría. USADO POR EL ADMIN
   const materialesAgrupados = computed(() => {
     const startIndex = (currentPage.value - 1) * rowsPerPage.value
     const endIndex = startIndex + rowsPerPage.value
@@ -60,10 +60,9 @@ export const useMaterialesStore = defineStore('materiales', () => {
   const fetchMateriales = async () => {
     loading.value = true
     try {
-      // Cargamos el listado completo para el filtro y paginación en el frontend.
       const { data, error } = await supabase
         .from('materiales')
-        .select('id, code, description, categoria') // Incluimos ID
+        .select('id, code, description, categoria')
         .order('categoria', { ascending: true })
 
       if (error) throw error
@@ -79,7 +78,7 @@ export const useMaterialesStore = defineStore('materiales', () => {
   /**
    * Añade o Edita un material.
    */
-  const saveMaterial = async (materialData) => { /* ... (lógica sin cambios) ... */
+  const saveMaterial = async (materialData) => {
     try {
       const isUpdate = materialData.id;
       const dataToSave = { 
@@ -108,7 +107,7 @@ export const useMaterialesStore = defineStore('materiales', () => {
   /**
    * Elimina un material.
    */
-  const deleteMaterial = async (idMaterial) => { /* ... (lógica sin cambios) ... */
+  const deleteMaterial = async (idMaterial) => {
     try {
       const { error } = await supabase.from('materiales').delete().eq('id', idMaterial)
       if (error) throw error
@@ -124,7 +123,8 @@ export const useMaterialesStore = defineStore('materiales', () => {
     searchQuery,
     currentPage,
     rowsPerPage,
-    materialesAgrupados, // USAR ESTE EN LA VISTA
+    todosMateriales, // Usado por los Modales
+    materialesAgrupados, // Usado por la Vista Admin
     totalMateriales,
     totalPaginas,
     // Acciones
