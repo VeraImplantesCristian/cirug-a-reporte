@@ -188,7 +188,7 @@ import FooterBar from '../components/FooterBar.vue'
 const formStore = useFormStore()
 const clientesStore = useClientesStore()
 const configStore = useConfigStore()
-const tiposCirugiaStore = useTiposCirugiaStore() 
+const tiposCirugiaStore = useTiposCirugiaStore() // Usar store de Tipos de Cirugía
 const toastStore = useToastStore()
 
 const { generarTextoPlano, formatearFecha } = useReportGenerator() 
@@ -229,8 +229,12 @@ const handleClienteBlur = () => {
 }
 
 const handleMaterialesConfirm = (materialesTexto) => {
+  // CAMBIO CLAVE: Lógica para actualizar el textarea
   const valorActual = formStore.formState.material.trim()
   formStore.formState.material = valorActual ? `${valorActual}\n${materialesTexto}` : materialesTexto
+  
+  // Cerramos el modal
+  isMaterialesModalVisible.value = false;
 }
 
 const handleTipoCirugiaConfirm = (tipoCirugiaNombre) => {
@@ -324,6 +328,7 @@ const handleSaveReport = async () => {
     formStore.formState.email_cliente = clienteSeleccionado.value?.email || null
     isPreviewVisible.value = true
   } else {
+    // El error ya es reportado por el store, aquí solo confirmamos que falló
     toastStore.showToast('Error al guardar el reporte.', 'error')
   }
 }
@@ -402,11 +407,11 @@ const handleSendAuditableMail = async (mailType) => {
 watch(() => formStore.actionTrigger, (trigger) => {
   if (trigger) {
     switch (trigger.name) {
-      case 'generatePreview':
-        handleGeneratePreview();
+      case 'generatePreview': // 'Guardar y Ver'
+        handleSaveReport(); // Ejecutamos la acción de guardado explícito, que abre la preview en su éxito.
         break;
       case 'saveReport':
-        handleSaveReport();
+        handleSaveReport(); // Si el botón explícito de Guardar es presionado
         break;
       case 'solicitarPedido':
         isSolicitudModalVisible.value = true;
