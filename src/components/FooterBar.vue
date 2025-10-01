@@ -1,49 +1,45 @@
 <!-- src/components/FooterBar.vue -->
 <template>
-  <footer class="fixed bottom-0 left-0 right-0 bg-[var(--card)]/95 backdrop-blur-sm border-t border-gray-200/80 z-40">
-    <div class="max-w-[var(--container)] mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex items-center justify-between h-20 gap-4">
+  <!-- Usamos un z-index más alto (z-50) para estar seguros de que cubre el scrollbar -->
+  <footer class="fixed bottom-0 left-0 right-0 bg-[var(--card)]/95 backdrop-blur-sm border-t border-gray-200/80 z-50">
+    <!-- Reducimos el padding horizontal a px-2 en móvil para aprovechar el espacio -->
+    <div class="max-w-[var(--container)] mx-auto px-2 sm:px-6 lg:px-8">
+      
+      <!-- Fila Única de Botones (h-12 para lo más delgado posible) -->
+      <div class="flex items-center justify-between h-12 gap-1 sm:gap-2 w-full"> 
         
-        <!-- Lado izquierdo: Acciones secundarias -->
-        <div class="flex items-center gap-3">
-          <!-- Botón de Guardar Reporte -->
-          <button @click="formStore.triggerSaveReport()" class="btn-secondary bg-[var(--ok)]">
+        <!-- Grupo Izquierdo: Limpiar, Guardar y Compartir (Compacto) -->
+        <div class="flex items-center gap-1 shrink-0">
+          <!-- Botón Limpiar (Escoba) - Se mantiene fijo para ser tocable -->
+          <button 
+            @click="triggerAndLog('resetForm')" 
+            class="bg-gray-200 text-gray-700 w-8 h-8 rounded-full hover:bg-gray-300 transition-colors flex items-center justify-center text-lg shrink-0"
+            title="Limpiar Formulario"
+          >
+            🧹
+          </button>
+          
+          <!-- CAMBIO CLAVE: Botón Principal: GUARDAR (Verde) -->
+          <button @click="triggerAndLog('save')" class="btn-primary bg-green-600 text-sm px-2 py-1.5 shrink-0">
             💾 Guardar
           </button>
-          
-          <!-- 
-            CAMBIO CLAVE: Volvemos al botón simple de Envío,
-            ya que sólo queda una opción (Enviar a Cliente).
-            Esto simplifica la UX.
-          -->
-          <button 
-            v-if="canSendEmail"
-            @click="handleSendClientReport" 
-            class="btn-secondary bg-teal-500"
-          >
-            ✉️ Enviar a Cliente
-          </button>
-          
-          <!-- Menú de compartir (abre hacia ARRIBA: drop-up="true") -->
+
+          <!-- Botón de Compartir (Menú) -->
           <DropdownMenu 
             label="🔗 Compartir" 
             :options="shareOptions" 
             @option-click="handleShare" 
             :drop-up="true" 
+            class="shrink-0"
           />
         </div>
-
-        <!-- Centro: Acción de solicitud de material -->
-        <div>
-          <button @click="formStore.triggerSolicitarPedido()" class="bg-yellow-500 text-gray-800 px-5 py-3 rounded-lg hover:bg-yellow-600 font-bold transition-colors shadow-md">
-            📧 Solicitar Pedido
-          </button>
-        </div>
-
-        <!-- Lado derecho: Acción Principal -->
-        <div>
-          <button @click="formStore.triggerGeneratePreview()" class="btn-primary">
-            📝 Vista Previa
+        
+        <!-- Grupo Derecho: Solicitud de Pedido (Único Botón de Servicio) -->
+        <div class="flex items-center gap-1 sm:gap-2 shrink-0">
+          
+          <!-- Botón de Solicitud de Pedido (Compacto) -->
+          <button @click="triggerAndLog('solicitarPedido')" class="bg-yellow-500 text-gray-800 px-2 py-1.5 rounded-lg hover:bg-yellow-600 font-bold transition-colors shadow-sm text-sm shrink-0">
+            📧 Pedido
           </button>
         </div>
 
@@ -61,12 +57,8 @@ import DropdownMenu from './DropdownMenu.vue';
 const formStore = useFormStore();
 const clientesStore = useClientesStore();
 
-// --- OPCIONES DE EMAILS FIJOS ELIMINADAS ---
-// const EMAIL_INTERNO = 'coordinacion@districorr.com.ar';
-// const EMAIL_ART = 'autorizaciones@art-implantes.com';
+// --- DEFINICIÓN DE ESTADO Y COMPUTED ---
 
-
-// Computada para saber si el cliente actual tiene email (se usa para mostrar el botón)
 const clienteSeleccionadoConEmail = computed(() => {
   const nombreCliente = formStore.formState.cliente;
   if (!nombreCliente) return false;
@@ -77,28 +69,64 @@ const clienteSeleccionadoConEmail = computed(() => {
   return cliente && cliente.email;
 });
 
-// NUEVO: canSendEmail ahora solo verifica si hay email de cliente
-const canSendEmail = computed(() => {
-  return clienteSeleccionadoConEmail.value;
+// Lógica para el menú Compartir (incluye el envío auditable si es posible)
+const handleShare = (option) => {
+    // Si la opción es "Enviar a Cliente", disparamos la acción auditable
+    if (option.id === 'send-client') {
+        formStore.triggerSendAuditableMail('cliente');
+        return;
+    }
+    // Para el resto de opciones (WhatsApp, Email Genérico, Print, Image)
+    formStore.triggerShare(option);
+}
+
+// Opciones de Compartir (Incluye el envío a cliente en el menú si hay email)
+const shareOptions = computed(() => {
+    const options = [
+        { id: 'whatsapp', label: '📲 Compartir (WhatsApp)' },
+        { id: 'email', label: '✉️ Compartir (Email Genérico)' },
+    ];
+
+    if (clienteSeleccionadoConEmail.value) {
+        options.unshift({ id: 'send-client', label: '✉️ Enviar a Cliente' });
+        options.unshift({ id: 'divider-1', label: '---', disabled: true });
+    }
+    
+    options.push(
+        { id: 'divider-2', label: '---', disabled: true },
+        { id: 'print', label: '🖨️ Imprimir / PDF' },
+        { id: 'image', label: '🖼️ Guardar como Imagen' },
+    );
+    return options;
 });
 
-// NUEVA FUNCIÓN: Dispara la acción de envío auditable para el Cliente
-const handleSendClientReport = () => {
-    // Disparamos la acción de envío al CLIENTE (tipo 'cliente')
-    formStore.triggerSendAuditableMail('cliente');
-}
 
-// La función que dispara la acción de compartir en el store.
-const handleShare = (option) => {
-  formStore.triggerShare(option);
-}
+// --- UTILITY: Mapeo de Triggers ---
+const triggerMap = {
+    // Principal: Guardar (que ahora dispara saveReport)
+    'save': formStore.triggerSaveReport, 
+    // Pedido
+    'solicitarPedido': formStore.triggerSolicitarPedido,
+    // Limpiar
+    'resetForm': formStore.triggerResetForm,
+};
 
-
-// El resto de opciones de compartir (no cambian)
-const shareOptions = [
-  { id: 'whatsapp', label: '📲 Enviar por WhatsApp' },
-  { id: 'email', label: '✉️ Enviar por Email (Mailto)' },
-  { id: 'print', label: '🖨️ Imprimir / PDF' },
-  { id: 'image', label: '🖼️ Guardar como Imagen' },
-];
+// --- MANEJADOR DE ACCIONES PRINCIPALES (CON LOG Y COMPROBACIONES) ---
+const triggerAndLog = (actionId, payload = null) => {
+    console.log(`FooterAction: Disparando acción => ${actionId}`);
+    const triggerFunc = triggerMap[actionId];
+    if (triggerFunc) {
+        triggerFunc(payload);
+    }
+};
 </script>
+
+<style scoped>
+/* Las clases de btn-primary y btn-secondary deben estar definidas globalmente en src/style.css. */
+.btn-primary {
+    @apply text-sm md:text-base;
+}
+.btn-secondary {
+    @apply text-xs md:text-sm;
+}
+</style>

@@ -1,91 +1,135 @@
 // src/stores/materialesStore.js
 
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue' // Añadimos computed
 import { supabase } from '../supabase'
 
 export const useMaterialesStore = defineStore('materiales', () => {
   // --- STATE ---
-  // 'materiales' ahora contendrá un objeto con los materiales agrupados por categoría.
-  const materiales = ref({})
+  const todosMateriales = ref([]) // Lista maestra de todos los materiales
+  const loading = ref(false)
+  const searchQuery = ref('')
+  
+  // Estado de Paginación (para la vista de administración)
+  const currentPage = ref(1)
+  const rowsPerPage = ref(15) // Aumentamos la paginación a 15 por página
+
+  // --- GETTERS ---
+  
+  // Filtra los materiales por término de búsqueda
+  const materialesFiltrados = computed(() => {
+    const query = searchQuery.value.toLowerCase().trim()
+    if (!query) {
+      return todosMateriales.value // Si no hay búsqueda, retorna todo
+    }
+    return todosMateriales.value.filter(material => 
+      material.code?.toLowerCase().includes(query) ||
+      material.description?.toLowerCase().includes(query) ||
+      material.categoria?.toLowerCase().includes(query)
+    )
+  })
+
+  // Agrupa los materiales (paginados/filtrados) por categoría.
+  const materialesAgrupados = computed(() => {
+    const startIndex = (currentPage.value - 1) * rowsPerPage.value
+    const endIndex = startIndex + rowsPerPage.value
+    
+    // Aplicamos paginación y agrupamos el subconjunto.
+    const paginatedAndFiltered = materialesFiltrados.value.slice(startIndex, endIndex)
+
+    const matAgrupados = {}
+    paginatedAndFiltered.forEach(item => {
+      const categoria = item.categoria || 'Sin Categoría'
+      if (!matAgrupados[categoria]) {
+        matAgrupados[categoria] = []
+      }
+      matAgrupados[categoria].push(item)
+    })
+    return matAgrupados
+  })
+  
+  const totalMateriales = computed(() => materialesFiltrados.value.length)
+  const totalPaginas = computed(() => Math.ceil(totalMateriales.value / rowsPerPage.value))
+
 
   // --- ACTIONS ---
 
-  // Acción para obtener y agrupar todos los materiales.
+  /**
+   * Carga *todos* los materiales sin paginación (es la lista maestra).
+   */
   const fetchMateriales = async () => {
+    loading.value = true
     try {
+      // Cargamos el listado completo para el filtro y paginación en el frontend.
       const { data, error } = await supabase
         .from('materiales')
-        .select('code, description, categoria')
-        .order('categoria')
-        .order('description', { ascending: true })
+        .select('id, code, description, categoria') // Incluimos ID
+        .order('categoria', { ascending: true })
 
       if (error) throw error
-
-      // --- LÓGICA DE AGRUPACIÓN CORREGIDA ---
-      // Creamos un nuevo objeto para agrupar los materiales.
-      const matAgrupados = {}
-      data.forEach(item => {
-        // Si un material no tiene categoría, lo asignamos a "Sin Categoría".
-        const categoria = item.categoria || 'Sin Categoría'
-        // Si la categoría no existe aún en nuestro objeto, la creamos como un array vacío.
-        if (!matAgrupados[categoria]) {
-          matAgrupados[categoria] = []
-        }
-        // Añadimos el material al array de su categoría.
-        matAgrupados[categoria].push(item)
-      })
-
-      // Asignamos el objeto agrupado a nuestro estado reactivo.
-      materiales.value = matAgrupados
-
+      todosMateriales.value = data
     } catch (error) {
       console.error('Error al obtener los materiales:', error.message)
-      materiales.value = {} // En caso de error, reseteamos a un objeto vacío.
+      throw error 
+    } finally {
+      loading.value = false
     }
   }
 
-  // Acción para añadir un nuevo material.
-  const addMaterial = async (material) => {
+  /**
+   * Añade o Edita un material.
+   */
+  const saveMaterial = async (materialData) => { /* ... (lógica sin cambios) ... */
     try {
-      const { data, error } = await supabase
-        .from('materiales')
-        .insert(material)
-        .select()
+      const isUpdate = materialData.id;
+      const dataToSave = { 
+          code: materialData.code, 
+          description: materialData.description, 
+          categoria: materialData.categoria 
+      };
 
-      if (error) throw error
+      let query = supabase.from('materiales');
       
-      // Después de añadir, volvemos a llamar a fetchMateriales para recargar y reagrupar todo.
-      // Esto asegura que la lista siempre esté actualizada y ordenada.
-      await fetchMateriales()
+      if (isUpdate) {
+        query = query.update(dataToSave).eq('id', materialData.id);
+      } else {
+        query = query.insert(dataToSave);
+      }
 
+      const { error } = await query;
+      if (error) throw error
+
+      await fetchMateriales() // Recargar la lista maestra
     } catch (error) {
-      console.error('Error al añadir el material:', error.message)
+      console.error('Error al guardar el material:', error.message)
     }
   }
 
-  // Acción para eliminar un material por su ID.
-  const deleteMaterial = async (idMaterial) => {
+  /**
+   * Elimina un material.
+   */
+  const deleteMaterial = async (idMaterial) => { /* ... (lógica sin cambios) ... */
     try {
-      const { error } = await supabase
-        .from('materiales')
-        .delete()
-        .eq('id', idMaterial)
-
+      const { error } = await supabase.from('materiales').delete().eq('id', idMaterial)
       if (error) throw error
-      
-      // Después de eliminar, también recargamos la lista.
-      await fetchMateriales()
-
+      await fetchMateriales() // Recargar la lista maestra
     } catch (error) {
       console.error('Error al eliminar el material:', error.message)
     }
   }
 
   return {
-    materiales,
+    // Estado y Getters
+    loading,
+    searchQuery,
+    currentPage,
+    rowsPerPage,
+    materialesAgrupados, // USAR ESTE EN LA VISTA
+    totalMateriales,
+    totalPaginas,
+    // Acciones
     fetchMateriales,
-    addMaterial,
+    saveMaterial,
     deleteMaterial,
   }
 })

@@ -28,25 +28,46 @@
         <div class="card-style lg:col-span-1">
           <h3 class="card-header">Datos Principales</h3>
           <div class="space-y-4">
+            <!-- Cliente (AHORA CON DATALIST DE AUTOCOMPLETADO) -->
             <div class="form-group">
               <label for="cliente">👤 Cliente (*)</label>
               <div class="relative">
-                <input id="cliente" type="text" v-model="formStore.formState.cliente" required @blur="formStore.validateField('cliente')" :class="{'border-red-500': formStore.validationErrors.cliente}" class="form-input" placeholder="Ej: Hospital Central"/>
+                <input 
+                  id="cliente" 
+                  type="text" 
+                  v-model="formStore.formState.cliente" 
+                  required 
+                  list="clientesList"
+                  @blur="handleClienteBlur"
+                  :class="{'border-red-500': formStore.validationErrors.cliente}" 
+                  class="form-input" 
+                  placeholder="Ej: Hospital Central"
+                />
+                <datalist id="clientesList">
+                  <!-- Iteramos sobre la lista completa de clientes -->
+                  <option v-for="c in clientesStore.allClients" :key="c.id" :value="c.nombre"></option>
+                </datalist>
                 <button @click="isClientesModalVisible = true" type="button" class="input-button">Seleccionar</button>
               </div>
               <p v-if="formStore.validationErrors.cliente" class="form-error">{{ formStore.validationErrors.cliente }}</p>
             </div>
+            
+            <!-- Paciente -->
             <div class="form-group">
               <label for="paciente">👤 Paciente (*)</label>
               <input id="paciente" type="text" v-model="formStore.formState.paciente" required @blur="formStore.validateField('paciente')" :class="{'border-red-500': formStore.validationErrors.paciente}" class="form-input" placeholder="Ingrese apellido y nombre"/>
               <p v-if="formStore.validationErrors.paciente" class="form-error">{{ formStore.validationErrors.paciente }}</p>
             </div>
+            
+            <!-- Médico -->
             <div class="form-group">
               <label for="medico">🩺 Médico (*)</label>
               <input id="medico" type="text" v-model="formStore.formState.medico" required list="medicosList" @blur="formStore.validateField('medico')" :class="{'border-red-500': formStore.validationErrors.medico}" class="form-input" placeholder="Escriba para autocompletar..."/>
               <datalist id="medicosList"><option v-for="m in formStore.sugerencias.medicos" :key="m" :value="m"></option></datalist>
               <p v-if="formStore.validationErrors.medico" class="form-error">{{ formStore.validationErrors.medico }}</p>
             </div>
+            
+            <!-- Instrumentador -->
             <div class="form-group">
               <label for="instrumentador">🧑‍⚕️ Instrumentador</label>
               <input id="instrumentador" type="text" v-model="formStore.formState.instrumentador" list="instrumentadoresList" class="form-input" placeholder="Escriba para autocompletar..."/>
@@ -55,28 +76,47 @@
           </div>
         </div>
 
-        <!-- === SECCIÓN 2: DETALLES DE LA CIRUGÍA === -->
+        <!-- === SECCIÓN 2: DETALLES DE LA CIRUGÍA (FECHAS REORDENADAS) === -->
         <div class="card-style lg:col-span-1">
           <h3 class="card-header">Detalles de la Cirugía</h3>
           <div class="space-y-4">
+            
+            <!-- Fecha de Envío (AHORA VA ARRIBA) -->
+            <div class="form-group">
+              <label for="fechaEnvio">✉️ Fecha de Envío</label>
+              <input id="fechaEnvio" type="date" v-model="formStore.formState.fecha_envio" class="form-input bg-cyan-50 border-cyan-200"/>
+            </div>
+
+            <!-- Fecha de Cirugía (AHORA VA ABAJO) -->
             <div class="form-group">
               <label for="fechaCirugia">🗓️ Fecha de Cirugía (*)</label>
               <input id="fechaCirugia" type="date" v-model="formStore.formState.fecha_cirugia" required @blur="formStore.validateField('fecha_cirugia')" :class="{'border-red-500': formStore.validationErrors.fecha_cirugia}" class="form-input"/>
               <p v-if="formStore.validationErrors.fecha_cirugia" class="form-error">{{ formStore.validationErrors.fecha_cirugia }}</p>
             </div>
-            <div class="form-group">
-              <label for="fechaEnvio">✉️ Fecha de Envío</label>
-              <input id="fechaEnvio" type="date" v-model="formStore.formState.fecha_envio" class="form-input bg-cyan-50 border-cyan-200"/>
-            </div>
+            
+            <!-- Lugar -->
             <div class="form-group">
               <label for="lugarCirugia">🏥 Lugar de Cirugía</label>
               <input id="lugarCirugia" type="text" v-model="formStore.formState.lugar_cirugia" list="lugaresList" class="form-input" placeholder="Escriba para autocompletar..."/>
               <datalist id="lugaresList"><option v-for="l in formStore.sugerencias.lugaresCirugia" :key="l" :value="l"></option></datalist>
             </div>
+            
+            <!-- Tipo de Cirugía (AHORA CON DATALIST DE AUTOCOMPLETADO) -->
             <div class="form-group">
               <label for="tipoCirugia">🔪 Tipo de Cirugía</label>
               <div class="relative">
-                <input id="tipoCirugia" type="text" v-model="formStore.formState.tipo_cirugia" class="form-input" placeholder="Ej: Artroscopia de rodilla"/>
+                <input 
+                  id="tipoCirugia" 
+                  type="text" 
+                  v-model="formStore.formState.tipo_cirugia" 
+                  list="tiposCirugiaList"
+                  class="form-input" 
+                  placeholder="Ej: Artroscopia de rodilla"
+                />
+                <datalist id="tiposCirugiaList">
+                  <!-- Iteramos sobre la lista completa de tipos de cirugía -->
+                  <option v-for="t in tiposCirugiaStore.allTiposCirugia" :key="t.id" :value="t.nombre"></option>
+                </datalist>
                 <button @click="isTiposCirugiaModalVisible = true" type="button" class="input-button">Seleccionar</button>
               </div>
             </div>
@@ -135,6 +175,7 @@ import { useFormStore } from '../stores/formStore'
 import { useClientesStore } from '../stores/clientesStore'
 import { useConfigStore } from '../stores/configStore'
 import { useReportGenerator } from '../composables/useReportGenerator' 
+import { useTiposCirugiaStore } from '../stores/tiposCirugiaStore' // Importar tiposCirugiaStore
 
 import ClientesModal from '../components/ClientesModal.vue'
 import MaterialesModal from '../components/MaterialesModal.vue'
@@ -147,6 +188,7 @@ import FooterBar from '../components/FooterBar.vue'
 const formStore = useFormStore()
 const clientesStore = useClientesStore()
 const configStore = useConfigStore()
+const tiposCirugiaStore = useTiposCirugiaStore() 
 const toastStore = useToastStore()
 
 const { generarTextoPlano, formatearFecha } = useReportGenerator() 
@@ -174,6 +216,18 @@ const handleClienteConfirm = (cliente) => {
   formStore.validateField('cliente')
 }
 
+// NUEVA FUNCIÓN: Maneja el evento blur del input Cliente para cargar el email si es autocompletado
+const handleClienteBlur = () => {
+    // Si el usuario escribió un cliente que coincide con la lista, cargamos su email.
+    const clienteEncontrado = clientesStore.allClients.find(c => c.nombre === formStore.formState.cliente);
+    if (clienteEncontrado) {
+        formStore.formState.email_cliente = clienteEncontrado.email;
+    } else {
+        formStore.formState.email_cliente = null;
+    }
+    formStore.validateField('cliente');
+}
+
 const handleMaterialesConfirm = (materialesTexto) => {
   const valorActual = formStore.formState.material.trim()
   formStore.formState.material = valorActual ? `${valorActual}\n${materialesTexto}` : materialesTexto
@@ -183,7 +237,6 @@ const handleTipoCirugiaConfirm = (tipoCirugiaNombre) => {
   formStore.formState.tipo_cirugia = tipoCirugiaNombre
 }
 
-// CORRECCIÓN CLAVE: Función para enviar la Solicitud de Pedido a DistriTrack
 const handleConfirmarPedido = (materiales) => {
   if (!formStore.validateForm()) {
     toastStore.showToast('Complete los campos requeridos (*) del formulario principal antes de solicitar.', 'warning')
@@ -218,11 +271,7 @@ const handleConfirmarPedido = (materiales) => {
     quantity: item.quantity
   }))
 
-  // Convertimos el array a JSON string
   const materialesJSONString = JSON.stringify(materialesParaAPI);
-  
-  // Añadimos el string JSON directamente a los parámetros.
-  // URLSearchParams codifica automáticamente el string JSON.
   params.append('materiales', materialesJSONString);
 
   const urlFinalDistriTrack = `${DISTRITRACK_URL}?${params.toString()}`
@@ -245,11 +294,22 @@ const handleEnviarACliente = () => {
   }
 }
 
-const handleGeneratePreview = () => {
+const handleGeneratePreview = async () => {
   if (!formStore.validateForm()) {
     toastStore.showToast('Corrija los errores en los campos requeridos (*).', 'warning')
     return
   }
+  
+  // Lógica de Guardado Implícito: Si no tiene ID (es nuevo), lo guardamos.
+  if (!formStore.formState.id) {
+      toastStore.showToast('Guardando reporte...', 'info');
+      const success = await formStore.saveReport();
+      if (!success) {
+          toastStore.showToast('Error al guardar el reporte. No se puede previsualizar.', 'error');
+          return; // Detener si falla el guardado
+      }
+  }
+  
   formStore.formState.email_cliente = clienteSeleccionado.value?.email || null
   isPreviewVisible.value = true
 }
@@ -359,6 +419,9 @@ watch(() => formStore.actionTrigger, (trigger) => {
         break;
       case 'sendAuditableMail':
           handleSendAuditableMail(trigger.payload.mailType);
+          break;
+      case 'resetForm': // <--- CONECTAMOS EL RESET
+          handleLimpiar();
           break;
     }
     formStore.clearActionTrigger();

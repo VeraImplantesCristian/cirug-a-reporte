@@ -6,8 +6,10 @@ import { supabase } from '../supabase'
 import { useClientesStore } from './clientesStore'
 import { useMaterialesStore } from './materialesStore'
 import { useTiposCirugiaStore } from './tiposCirugiaStore'
-// Importamos el store de configuración
 import { useConfigStore } from './configStore' 
+// Importamos el store del Toast para notificar errores de guardado
+import { useToastStore } from './toastStore' 
+
 
 const getTodayDateString = () => {
   const today = new Date();
@@ -48,8 +50,7 @@ export const useFormStore = defineStore('form', () => {
   const triggerSaveReport = () => { actionTrigger.value = { name: 'saveReport', timestamp: Date.now() } };
   const triggerSolicitarPedido = () => { actionTrigger.value = { name: 'solicitarPedido', timestamp: Date.now() } };
   const triggerShare = (option) => { actionTrigger.value = { name: 'share', payload: option, timestamp: Date.now() } };
-  
-  // --- TRIGGER AUDITABLE ---
+  const triggerResetForm = () => { actionTrigger.value = { name: 'resetForm', timestamp: Date.now() } };
   const triggerSendAuditableMail = (mailType) => { actionTrigger.value = { name: 'sendAuditableMail', payload: { mailType }, timestamp: Date.now() } };
   
   const clearActionTrigger = () => { actionTrigger.value = null };
@@ -104,14 +105,13 @@ export const useFormStore = defineStore('form', () => {
     const clientesStore = useClientesStore()
     const materialesStore = useMaterialesStore()
     const tiposCirugiaStore = useTiposCirugiaStore()
-    const configStore = useConfigStore() // Usamos configStore aquí
+    const configStore = useConfigStore()
 
-    // Cargamos todos los datos maestros y de configuración en paralelo
     await Promise.all([
       clientesStore.fetchAllClients(),
       materialesStore.fetchMateriales(),
       tiposCirugiaStore.fetchTiposCirugia(),
-      configStore.fetchMensajes(), // Cargamos los mensajes de configuración
+      configStore.fetchMensajes(),
     ]);
 
     try {
@@ -141,7 +141,6 @@ export const useFormStore = defineStore('form', () => {
 
   // --- Función: Construye y registra el mailto auditable ---
   const sendAuditableMail = async (mailType, textoPlano) => {
-      // 1. Dependencias y Variables
       const configStore = useConfigStore();
       const asuntoBase = configStore.mensajes.asunto_base || 'Reporte de Cirugía';
       const asuntoFinal = configStore.replaceVariables(asuntoBase, formState);
@@ -169,7 +168,6 @@ export const useFormStore = defineStore('form', () => {
           return { success: false, error: `El destinatario para ${mailType} no está configurado o no tiene email.` };
       }
 
-      // 2. Registrar la intención de envío (Log)
       const logData = {
           reporte_id: formState.id, 
           tipo_envio: mailType.toUpperCase(),
@@ -180,7 +178,6 @@ export const useFormStore = defineStore('form', () => {
 
       await logEmailAttempt(logData);
 
-      // 3. Disparar el mailto:
       const mailtoLink = `mailto:${destinatario}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(textoPlano)}`;
       window.location.href = mailtoLink;
       
@@ -189,6 +186,9 @@ export const useFormStore = defineStore('form', () => {
 
 
   const saveReport = async () => {
+    // Importamos el store del Toast aquí para notificar errores directamente
+    const toastStore = useToastStore(); 
+
     try {
       formState.mensaje_inicio = MENSAJE_INICIO_DEFAULT;
       
@@ -198,12 +198,18 @@ export const useFormStore = defineStore('form', () => {
       
       const reportDataToSave = { ...formState };
       delete reportDataToSave.email_cliente;
-      delete reportDataToSave.id; // Aseguramos que el ID no se use en un INSERT
+      delete reportDataToSave.id;
 
       const { data, error } = await supabase.from('reportes').insert([reportDataToSave]).select()
-      if (error) throw error
       
-      // Guardamos el ID del reporte en el formState para que esté disponible para el log
+      if (error) {
+          console.error('SUPABASE INSERT ERROR:', error);
+          // CAMBIO CLAVE: Notificar error de Supabase al usuario
+          toastStore.showToast(`Error de Supabase: ${error.message}. (Revisa RLS en 'reportes')`, 'error');
+          throw error;
+      }
+      
+      // Guardamos el ID del reporte en el formState
       formState.id = data[0].id; 
       
       await Promise.all([
@@ -213,7 +219,7 @@ export const useFormStore = defineStore('form', () => {
       ])
       return true
     } catch (error) {
-      console.error('Error al guardar el reporte:', error.message)
+      console.error('saveReport: Error al guardar el reporte:', error.message)
       return false
     }
   }
@@ -231,7 +237,7 @@ export const useFormStore = defineStore('form', () => {
 
       if (data) {
         formState.mensaje_inicio = MENSAJE_INICIO_DEFAULT;
-        formState.id = data.id; // Cargamos el ID para futuras auditorías
+        formState.id = data.id; 
         formState.cliente = data.cliente
         formState.paciente = data.paciente
         formState.medico = data.medico
@@ -283,7 +289,7 @@ export const useFormStore = defineStore('form', () => {
     formState.info_adicional = ''
     formState.fecha_envio = null
     formState.email_cliente = null;
-    formState.id = null; // Limpiamos el ID del reporte
+    formState.id = null; 
 
     Object.keys(validationErrors).forEach(key => {
       validationErrors[key] = null
@@ -300,6 +306,7 @@ export const useFormStore = defineStore('form', () => {
     triggerSolicitarPedido,
     triggerShare,
     triggerSendAuditableMail,
+    triggerResetForm, 
     sendAuditableMail,
     logEmailAttempt,
     clearActionTrigger,
