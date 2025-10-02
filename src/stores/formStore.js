@@ -7,7 +7,6 @@ import { useClientesStore } from './clientesStore'
 import { useMaterialesStore } from './materialesStore'
 import { useTiposCirugiaStore } from './tiposCirugiaStore'
 import { useConfigStore } from './configStore' 
-// Importamos el store del Toast para notificar errores de guardado
 import { useToastStore } from './toastStore' 
 
 
@@ -20,7 +19,6 @@ const getTodayDateString = () => {
 
 const MENSAJE_INICIO_DEFAULT = 'Estimados, Adjunto detalles de la cirugía programada:';
 
-// --- CONFIGURACIÓN DE EMAILS FIJOS (DEBEN COINCIDIR CON FooterBar.vue) ---
 const EMAIL_INTERNO = 'coordinacion@districorr.com.ar';
 const EMAIL_ART = 'autorizaciones@art-implantes.com';
 
@@ -40,12 +38,11 @@ export const useFormStore = defineStore('form', () => {
     info_adicional: '',
     fecha_envio: null,
     email_cliente: null,
-    id: null, // ID del reporte guardado
+    id: null,
   })
 
   const actionTrigger = ref(null);
 
-  // --- ACCIONES para ser llamadas desde el FooterBar ---
   const triggerGeneratePreview = () => { actionTrigger.value = { name: 'generatePreview', timestamp: Date.now() } };
   const triggerSaveReport = () => { actionTrigger.value = { name: 'saveReport', timestamp: Date.now() } };
   const triggerSolicitarPedido = () => { actionTrigger.value = { name: 'solicitarPedido', timestamp: Date.now() } };
@@ -126,7 +123,6 @@ export const useFormStore = defineStore('form', () => {
     }
   }
 
-  // --- Función: Registra el intento de envío de email ---
   const logEmailAttempt = async (logData) => {
     try {
         const { error } = await supabase
@@ -139,7 +135,6 @@ export const useFormStore = defineStore('form', () => {
     }
   }
 
-  // --- Función: Construye y registra el mailto auditable ---
   const sendAuditableMail = async (mailType, textoPlano) => {
       const configStore = useConfigStore();
       const asuntoBase = configStore.mensajes.asunto_base || 'Reporte de Cirugía';
@@ -184,43 +179,75 @@ export const useFormStore = defineStore('form', () => {
       return { success: true, message: `Mailto a ${mailType.toUpperCase()} disparado.` };
   }
 
-
+  // --- FUNCIÓN saveReport REESCRITA Y MEJORADA ---
   const saveReport = async () => {
-    // Importamos el store del Toast aquí para notificar errores directamente
-    const toastStore = useToastStore(); 
+    const toastStore = useToastStore();
+    console.log('saveReport: Iniciando proceso de guardado...');
+
+    if (!validateForm()) {
+      console.error('saveReport: La validación del formulario falló.');
+      return false;
+    }
 
     try {
-      formState.mensaje_inicio = MENSAJE_INICIO_DEFAULT;
+      const reportData = {
+        cliente: formState.cliente,
+        paciente: formState.paciente,
+        medico: formState.medico,
+        instrumentador: formState.instrumentador,
+        lugar_cirugia: formState.lugar_cirugia,
+        fecha_cirugia: formState.fecha_cirugia,
+        tipo_cirugia: formState.tipo_cirugia,
+        material: formState.material,
+        observaciones: formState.observaciones,
+        info_adicional: formState.info_adicional,
+        fecha_envio: formState.fecha_envio || getTodayDateString(),
+        estado: 'Pendiente'
+      };
       
-      if (!formState.fecha_envio) {
-        formState.fecha_envio = getTodayDateString();
-      }
+      let data, error;
       
-      const reportDataToSave = { ...formState };
-      delete reportDataToSave.email_cliente;
-      delete reportDataToSave.id;
+      if (formState.id) {
+        console.log('saveReport: El reporte ya existe. Actualizando ID:', formState.id);
+        
+        ({ data, error } = await supabase
+          .from('reportes')
+          .update(reportData)
+          .eq('id', formState.id)
+          .select()
+          .single());
 
-      const { data, error } = await supabase.from('reportes').insert([reportDataToSave]).select()
+      } else {
+        console.log('saveReport: Creando nuevo reporte...');
+        
+        ({ data, error } = await supabase
+          .from('reportes')
+          .insert(reportData)
+          .select()
+          .single());
+      }
       
       if (error) {
-          console.error('SUPABASE INSERT ERROR:', error);
-          // CAMBIO CLAVE: Notificar error de Supabase al usuario
-          toastStore.showToast(`Error de Supabase: ${error.message}. (Revisa RLS en 'reportes')`, 'error');
-          throw error;
+        console.error('SUPABASE SAVE/UPDATE ERROR:', error);
+        toastStore.showToast(`Error de Supabase: ${error.message}`, 'error');
+        throw error;
       }
       
-      // Guardamos el ID del reporte en el formState
-      formState.id = data[0].id; 
+      console.log('saveReport: Reporte guardado con éxito. ID:', data.id);
+      
+      formState.id = data.id; 
       
       await Promise.all([
         saveSugerencia('medico', formState.medico),
         saveSugerencia('instrumentador', formState.instrumentador),
         saveSugerencia('lugar_cirugia', formState.lugar_cirugia)
-      ])
-      return true
-    } catch (error) {
-      console.error('saveReport: Error al guardar el reporte:', error.message)
-      return false
+      ]);
+      
+      return true;
+
+    } catch (err) {
+      console.error('saveReport: Error general al guardar el reporte:', err.message);
+      return false;
     }
   }
 
