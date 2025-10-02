@@ -228,11 +228,8 @@ const handleClienteBlur = () => {
 }
 
 const handleMaterialesConfirm = (materialesTexto) => {
-  // Lógica para actualizar el textarea
   const valorActual = formStore.formState.material.trim()
   formStore.formState.material = valorActual ? `${valorActual}\n${materialesTexto}` : materialesTexto
-  
-  // Cerramos el modal
   isMaterialesModalVisible.value = false;
 }
 
@@ -260,14 +257,12 @@ const handleConfirmarPedido = (materiales) => {
   const DISTRITRACK_URL = 'https://distri-track.vercel.app/dashboard/new-surgery'
   const params = new URLSearchParams()
   
-  // Mapeo de datos principales
   params.append('patient_name', datos.paciente)
   params.append('doctor_name', datos.medico)
   params.append('client', datos.cliente) // Mapeamos 'cliente' a client (ART/Aseguradora)
   params.append('institution', datos.lugar_cirugia) // Mapeamos 'lugar_cirugia' a institution (Hospital/Clínica)
   params.append('surgery_date', datos.fecha_cirugia)
   
-  // Mapeo de Materiales
   const materialesParaAPI = materiales.map(item => ({
     type: "note", 
     description: item.description,
@@ -324,11 +319,7 @@ const handleSaveReport = async () => {
   }
   if (await formStore.saveReport()) {
     toastStore.showToast('Reporte guardado con éxito!', 'success')
-    // Eliminamos la apertura de preview al guardar explícitamente.
-    // formStore.formState.email_cliente = clienteSeleccionado.value?.email || null
-    // isPreviewVisible.value = true
   } else {
-    // El error ya es reportado por el store, aquí solo confirmamos que falló
     toastStore.showToast('Error al guardar el reporte.', 'error')
   }
 }
@@ -408,7 +399,7 @@ watch(() => formStore.actionTrigger, (trigger) => {
   if (trigger) {
     switch (trigger.name) {
       case 'generatePreview': // 'Guardar y Ver'
-        handleGeneratePreview(); // Ejecutamos la acción de guardado implícito
+        handleGeneratePreview(); // Esta función ahora guarda implícitamente
         break;
       case 'saveReport':
         handleSaveReport(); // Si el botón explícito de Guardar es presionado
