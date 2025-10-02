@@ -8,7 +8,7 @@
       <!-- Fila Única de Botones (h-12 para lo más delgado posible) -->
       <div class="flex items-center justify-between h-12 gap-1 sm:gap-2 w-full"> 
         
-        <!-- Grupo Izquierdo: Limpiar, Guardar y Compartir (Compacto) -->
+        <!-- Grupo Izquierdo: Limpiar y Guardar/Ver (Prioridad 1) -->
         <div class="flex items-center gap-1 shrink-0">
           <!-- Botón Limpiar (Escoba) - Se mantiene fijo para ser tocable -->
           <button 
@@ -19,28 +19,30 @@
             🧹
           </button>
           
-          <!-- CAMBIO CLAVE: Botón Principal: GUARDAR (Verde) -->
-          <button @click="triggerAndLog('save')" class="btn-primary bg-green-600 text-sm px-1 py-1.5 shrink-0">
+          <!-- Botón Principal: GUARDAR/VER -->
+          <button @click="triggerAndLog('saveAndPreview')" class="btn-primary bg-green-600 text-sm px-3 py-1.5 shrink-0">
             💾 Guardar/Ver
           </button>
 
-          <!-- Botón de Compartir (Menú) -->
+          <!-- Menú de Acciones Secundarias (Vista Previa, Enviar, Compartir) -->
           <DropdownMenu 
-            label="🔗 Compartir" 
-            :options="shareOptions" 
-            @option-click="handleShare" 
+            label="⚙️ Acciones" 
+            :options="actionOptions" 
+            @option-click="handleActionMenu" 
             :drop-up="true" 
             class="shrink-0"
           />
         </div>
         
-        <!-- Grupo Derecho: Solicitud de Pedido (Único Botón de Servicio) -->
+        <!-- Grupo Central: Solicitud de Pedido (Único Botón de Servicio) -->
         <div class="flex items-center gap-1 sm:gap-2 shrink-0">
           
           <!-- Botón de Solicitud de Pedido (Compacto) -->
-          <button @click="triggerAndLog('solicitarPedido')" class="bg-yellow-500 text-gray-800 px-2 py-1.5 rounded-lg hover:bg-yellow-600 font-bold transition-colors shadow-sm text-sm shrink-0">
+          <button @click="triggerAndLog('solicitarPedido')" class="bg-yellow-500 text-gray-800 px-2 py-1 rounded-lg hover:bg-yellow-600 font-bold transition-colors shadow-sm text-xs shrink-0">
             📧 Pedido
           </button>
+
+          <!-- El botón Ver fue eliminado para simplificar el layout móvil -->
         </div>
 
       </div>
@@ -59,55 +61,50 @@ const clientesStore = useClientesStore();
 
 // --- DEFINICIÓN DE ESTADO Y COMPUTED ---
 
-const clienteSeleccionadoConEmail = computed(() => {
+// FUNCIÓN DE AISLAMIENTO: Obtiene el cliente seleccionado y su email
+const getClienteSeleccionado = () => {
   const nombreCliente = formStore.formState.cliente;
-  if (!nombreCliente) return false;
-  
-  const cliente = clientesStore.allClients.find(c => c.nombre === nombreCliente);
-  // Guardamos el email en el formState temporalmente
+  if (!nombreCliente) return null;
+  return clientesStore.allClients.find(c => c.nombre === nombreCliente);
+};
+
+// FUNCIÓN PARA VERIFICAR EMAIL (USADA PARA VISIBILIDAD DEL MENÚ)
+const checkCanSendEmail = () => {
+  const cliente = getClienteSeleccionado();
+  // Sincronizamos el email en el formState aquí.
   formStore.formState.email_cliente = cliente ? cliente.email : null;
   return cliente && cliente.email;
-});
+};
 
-// Lógica para el menú Compartir (incluye el envío auditable si es posible)
-const handleShare = (option) => {
-    // Si la opción es "Enviar a Cliente", disparamos la acción auditable
-    if (option.id === 'send-client') {
-        formStore.triggerSendAuditableMail('cliente');
-        return;
-    }
-    // Para el resto de opciones (WhatsApp, Email Genérico, Print, Image)
-    formStore.triggerShare(option);
-}
-
-// Opciones de Compartir (Incluye el envío a cliente en el menú si hay email)
-const shareOptions = computed(() => {
+// --- OPCIONES DE MENÚ DE ACCIONES (Actualizado para usar checkCanSendEmail) ---
+const actionOptions = computed(() => {
+    // Aseguramos que el email se actualice antes de construir el menú.
+    const canSend = checkCanSendEmail();
+    
     const options = [
-        { id: 'whatsapp', label: '📲 Compartir (WhatsApp)' },
-        { id: 'email', label: '✉️ Compartir (Email Genérico)' },
+        { id: 'show-preview', label: '📝 Vista Previa' },
+        { id: 'divider-1', label: '---', disabled: true },
     ];
-
-    if (clienteSeleccionadoConEmail.value) {
-        options.unshift({ id: 'send-client', label: '✉️ Enviar a Cliente' });
-        options.unshift({ id: 'divider-1', label: '---', disabled: true });
+    
+    if (canSend) { // Usamos la función de chequeo
+        options.push({ id: 'send-client', label: '✉️ Enviar a Cliente' });
     }
     
     options.push(
         { id: 'divider-2', label: '---', disabled: true },
-        { id: 'print', label: '🖨️ Imprimir / PDF' },
-        { id: 'image', label: '🖼️ Guardar como Imagen' },
+        { id: 'share-whatsapp', label: '📲 Compartir (WhatsApp)' },
+        { id: 'share-email', label: '✉️ Compartir (Email Genérico)' },
+        { id: 'share-print', label: '🖨️ Imprimir / PDF' },
+        { id: 'share-image', label: '🖼️ Guardar como Imagen' },
     );
     return options;
 });
 
-
 // --- UTILITY: Mapeo de Triggers ---
 const triggerMap = {
-    // Principal: Guardar (que ahora dispara saveReport)
-    'save': formStore.triggerSaveReport, 
-    // Pedido
+    // La acción principal de 'Guardar/Ver' llama al trigger de GeneratePreview
+    'saveAndPreview': formStore.triggerGeneratePreview, 
     'solicitarPedido': formStore.triggerSolicitarPedido,
-    // Limpiar
     'resetForm': formStore.triggerResetForm,
 };
 
@@ -117,8 +114,35 @@ const triggerAndLog = (actionId, payload = null) => {
     const triggerFunc = triggerMap[actionId];
     if (triggerFunc) {
         triggerFunc(payload);
+    } else {
+        console.warn(`FooterAction: No se encontró función para la acción ID: ${actionId}`);
     }
 };
+
+// MANEJADOR DEL MENÚ DE ACCIONES
+const handleActionMenu = (option) => {
+    switch (option.id) {
+        case 'show-preview':
+            // Dispara el Guardar/Ver que está en el ReporteFormView
+            triggerAndLog('saveAndPreview'); 
+            break;
+        case 'send-client':
+            formStore.triggerSendAuditableMail('cliente');
+            break;
+        case 'share-whatsapp':
+            formStore.triggerShare({ id: 'whatsapp' });
+            break;
+        case 'share-email':
+            formStore.triggerShare({ id: 'email' });
+            break;
+        case 'share-print':
+            formStore.triggerShare({ id: 'print' });
+            break;
+        case 'share-image':
+            formStore.triggerShare({ id: 'image' });
+            break;
+    }
+}
 </script>
 
 <style scoped>
