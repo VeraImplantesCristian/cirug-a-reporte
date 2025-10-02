@@ -48,11 +48,10 @@
 import { computed } from 'vue'
 import { copyHtmlToClipboard } from '../utils/clipboard'
 import { useToastStore } from '../stores/toastStore'
-// CAMBIO CLAVE: Importamos y usamos el composable
 import { useReportGenerator } from '../composables/useReportGenerator'
 
 
-// Definimos props (ESTO ES CORRECTO)
+// Definimos props
 const props = defineProps({
   modelValue: { type: Boolean, required: true },
   reporteData: { type: Object, default: () => ({}) }
@@ -64,60 +63,34 @@ const toastStore = useToastStore()
 // Inicializamos el composable para acceder a las funciones de generación
 const { generarTextoPlano, generarHTMLReporte } = useReportGenerator() 
 
-// --- COMPUTED que usa el Composable (Elimina la lógica interna antigua) ---
-// La función original generarTextoPlanoCompleto usaba 'datos' directamente,
-// aquí debemos simular los datos para el composable.
+
+// --- COMPUTED que usa el Composable (CORREGIDO) ---
+// El getter debe ser una función simple.
 const formattedReportHTML = computed(() => {
-    // CAMBIO CLAVE: Llamamos al composable
-    // Pasamos el email del cliente a la función (que está en reporteData)
-    // Nota: El composable está diseñado para leer del formStore, pero aquí 
-    // debe usar el reporteData de los props. La solución más rápida es
-    // forzar que el composable lea los datos de forma temporal o
-    // rehacer las funciones aquí para que usen los props directamente.
-    
-    // Solución más segura y limpia: Pasar el reporteData a una función local de generación
-    // que use el composable. Sin embargo, dado que el error está en la resolución,
-    // vamos a crear las funciones localmente y usar el código del composable.
-    
-    // Opción 1: Reimplementar la lógica de la generación de HTML (que es lo que el componente hacía)
-    return generarHTMLReporteCompleto(props.reporteData);
+    // Registramos que se está generando el HTML
+    console.log('PreviewDrawer: Generando HTML para el reporte.'); 
+    // LLAMAMOS AL COMPOSABLE para obtener el HTML con los datos de los props
+    return generarHTMLReporte(props.reporteData.email_cliente);
 });
-
-
-// --- FUNCIONES DE GENERACIÓN (Mantenemos la que genera HTML/Texto para que el computed funcione) ---
-// NOTA: Estas funciones son las que antes estaban rompiendo. Ahora las movemos a local para que el computed funcione.
-const formatearFecha = (fechaISO) => {
-  if (!fechaISO) return null
-  const [year, month, day] = fechaISO.split('-')
-  return `${day}/${month}/${year}`
-}
-const formatTextForHTML = (text) => text ? text.replace(/\n/g, '<br>') : '<span style="color: #9ca3af;">No especificado</span>';
-
-const generarTextoPlanoCompleto = (datos) => {
-  // Lógica de texto plano (usada por Mailto y Copiar)
-  return generarTextoPlano(datos.email_cliente); // Llamamos al composable
-}
-
-const generarHTMLReporteCompleto = (datos) => {
-  // Lógica de HTML (usada por el v-html)
-  return generarHTMLReporte(datos.email_cliente); // Llamamos al composable
-}
 
 
 // --- FUNCIONES DE ACCIÓN PARA COPIAR Y ENVIAR ---
 
 const handleCopiarTextoPlano = async () => {
+  console.log('PreviewDrawer: Copiando Texto Plano...');
   try {
     // Usamos el composable
     const textoPlano = generarTextoPlano(props.reporteData.email_cliente)
     await navigator.clipboard.writeText(textoPlano)
     toastStore.showToast('Reporte copiado como texto plano.', 'success')
   } catch (error) {
+    console.error('Error al copiar el texto plano:', error);
     toastStore.showToast('Error al copiar el reporte.', 'error')
   }
 }
 
 const handleCopiarHtmlEmail = async () => {
+  console.log('PreviewDrawer: Copiando HTML...');
   try {
     // Usamos el composable
     const htmlContent = generarHTMLReporte(props.reporteData.email_cliente)
@@ -126,11 +99,13 @@ const handleCopiarHtmlEmail = async () => {
     await copyHtmlToClipboard(htmlContent, textContent)
     toastStore.showToast('Reporte copiado como HTML para email.', 'success')
   } catch (error) {
+    console.error('Error al copiar el HTML:', error);
     toastStore.showToast('Error al copiar el reporte como HTML.', 'error')
   }
 }
 
 const handleAbrirMailCliente = () => {
+  console.log('PreviewDrawer: Abriendo Mail Cliente...');
   const datos = props.reporteData
   if (datos.email_cliente) {
     // Usamos el composable
@@ -143,17 +118,24 @@ const handleAbrirMailCliente = () => {
     toastStore.showToast('Este cliente no tiene un email registrado.', 'warning')
   }
 }
-
-// CORRECCIÓN: Volvemos a hacer que el computed use el composable
-const formattedReportHTML = computed(() => {
-    return generarHTMLReporte(props.reporteData.email_cliente);
-});
 </script>
 
 <style scoped>
 /* Animación para el drawer (sin cambios) */
 .drawer-enter-active,
 .drawer-leave-active {
-// ... (código sin cambios) ...
+  transition: opacity 0.3s ease;
+}
+.drawer-enter-active .absolute.top-0.right-0,
+.drawer-leave-active .absolute.top-0.right-0 {
+  transition: transform 0.3s ease;
+}
+.drawer-enter-from,
+.drawer-leave-to {
+  opacity: 0;
+}
+.drawer-enter-from .absolute.top-0.right-0,
+.drawer-leave-to .absolute.top-0.right-0 {
+  transform: translateX(100%);
 }
 </style>
