@@ -175,7 +175,7 @@ import { useFormStore } from '../stores/formStore'
 import { useClientesStore } from '../stores/clientesStore'
 import { useConfigStore } from '../stores/configStore'
 import { useReportGenerator } from '../composables/useReportGenerator' 
-import { useTiposCirugiaStore } from '../stores/tiposCirugiaStore' // Importar tiposCirugiaStore
+import { useTiposCirugiaStore } from '../stores/tiposCirugiaStore' 
 
 import ClientesModal from '../components/ClientesModal.vue'
 import MaterialesModal from '../components/MaterialesModal.vue'
@@ -188,7 +188,7 @@ import FooterBar from '../components/FooterBar.vue'
 const formStore = useFormStore()
 const clientesStore = useClientesStore()
 const configStore = useConfigStore()
-const tiposCirugiaStore = useTiposCirugiaStore() // Usar store de Tipos de Cirugía
+const tiposCirugiaStore = useTiposCirugiaStore() 
 const toastStore = useToastStore()
 
 const { generarTextoPlano, formatearFecha } = useReportGenerator() 
@@ -216,9 +216,8 @@ const handleClienteConfirm = (cliente) => {
   formStore.validateField('cliente')
 }
 
-// NUEVA FUNCIÓN: Maneja el evento blur del input Cliente para cargar el email si es autocompletado
+// FUNCIÓN: Maneja el evento blur del input Cliente para cargar el email si es autocompletado
 const handleClienteBlur = () => {
-    // Si el usuario escribió un cliente que coincide con la lista, cargamos su email.
     const clienteEncontrado = clientesStore.allClients.find(c => c.nombre === formStore.formState.cliente);
     if (clienteEncontrado) {
         formStore.formState.email_cliente = clienteEncontrado.email;
@@ -229,7 +228,7 @@ const handleClienteBlur = () => {
 }
 
 const handleMaterialesConfirm = (materialesTexto) => {
-  // CAMBIO CLAVE: Lógica para actualizar el textarea
+  // Lógica para actualizar el textarea
   const valorActual = formStore.formState.material.trim()
   formStore.formState.material = valorActual ? `${valorActual}\n${materialesTexto}` : materialesTexto
   
@@ -309,8 +308,8 @@ const handleGeneratePreview = async () => {
       toastStore.showToast('Guardando reporte...', 'info');
       const success = await formStore.saveReport();
       if (!success) {
-          toastStore.showToast('Error al guardar el reporte. No se puede previsualizar.', 'error');
-          return; // Detener si falla el guardado
+          // El store ya lanzó el toast de error.
+          return; 
       }
   }
   
@@ -325,8 +324,9 @@ const handleSaveReport = async () => {
   }
   if (await formStore.saveReport()) {
     toastStore.showToast('Reporte guardado con éxito!', 'success')
-    formStore.formState.email_cliente = clienteSeleccionado.value?.email || null
-    isPreviewVisible.value = true
+    // Eliminamos la apertura de preview al guardar explícitamente.
+    // formStore.formState.email_cliente = clienteSeleccionado.value?.email || null
+    // isPreviewVisible.value = true
   } else {
     // El error ya es reportado por el store, aquí solo confirmamos que falló
     toastStore.showToast('Error al guardar el reporte.', 'error')
@@ -408,7 +408,7 @@ watch(() => formStore.actionTrigger, (trigger) => {
   if (trigger) {
     switch (trigger.name) {
       case 'generatePreview': // 'Guardar y Ver'
-        handleSaveReport(); // Ejecutamos la acción de guardado explícito, que abre la preview en su éxito.
+        handleGeneratePreview(); // Ejecutamos la acción de guardado implícito
         break;
       case 'saveReport':
         handleSaveReport(); // Si el botón explícito de Guardar es presionado
