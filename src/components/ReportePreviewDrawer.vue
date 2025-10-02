@@ -18,7 +18,8 @@
         </header>
 
         <!-- Contenido del Reporte -->
-        <section class="p-6 overflow-y-auto flex-grow reporte-box" v-html="formattedReportHTML"></section>
+        <!-- Usamos v-if para asegurar que el HTML solo se renderice si el drawer está abierto -->
+        <section v-if="modelValue" class="p-6 overflow-y-auto flex-grow reporte-box" v-html="formattedReportHTML"></section>
 
         <!-- Footer con botones de acción -->
         <footer class="p-4 border-t border-gray-200/80 flex flex-wrap justify-between gap-3 items-center">
@@ -64,9 +65,11 @@ const toastStore = useToastStore()
 const { generarTextoPlano, generarHTMLReporte } = useReportGenerator() 
 
 
-// --- COMPUTED que usa el Composable (CORREGIDO) ---
-// El getter debe ser una función simple.
+// --- COMPUTED que usa el Composable (AISLADO) ---
 const formattedReportHTML = computed(() => {
+    // Si el modal está cerrado, no generamos nada para evitar errores de compilación prematura.
+    if (!props.modelValue) return 'Generando vista previa...';
+    
     // Registramos que se está generando el HTML
     console.log('PreviewDrawer: Generando HTML para el reporte.'); 
     // LLAMAMOS AL COMPOSABLE para obtener el HTML con los datos de los props
