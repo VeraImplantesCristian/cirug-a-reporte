@@ -1,5 +1,6 @@
 <!-- src/components/MaterialesModal.vue -->
 <template>
+  <!-- Asumimos que BaseModal es un componente funcional que maneja el backdrop y el slot -->
   <BaseModal
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
@@ -26,7 +27,7 @@
           <!-- Lista de Checkboxes -->
           <ul class="space-y-1 pt-1">
             <li v-for="material in materiales" :key="material.id" class="flex items-center justify-between p-1 hover:bg-blue-50/50 cursor-pointer">
-              <label :for="`mat-${material.id}`" class="flex-1 cursor-pointer">
+              <label :for="`mat-${material.id}`" class="flex-1 cursor-pointer flex items-center">
                 <input 
                   type="checkbox" 
                   :id="`mat-${material.id}`" 
@@ -34,8 +35,10 @@
                   v-model="materialesSeleccionados" 
                   class="mr-2 rounded text-blue-600 focus:ring-blue-500"
                 />
-                <span class="font-mono text-xs text-gray-600">{{ material.code }}</span>
-                <span class="ml-2 text-sm text-gray-800">{{ material.description }}</span>
+                <div class="min-w-0">
+                    <span class="font-mono text-xs text-gray-600 block">{{ material.code }}</span>
+                    <span class="ml-2 text-sm text-gray-800 block">{{ material.description }}</span>
+                </div>
               </label>
             </li>
           </ul>
@@ -61,13 +64,17 @@ import { useMaterialesStore } from '../stores/materialesStore';
 
 const materialesStore = useMaterialesStore();
 
+// --- PROPS & EMITS ---
 defineProps({
   modelValue: { type: Boolean, required: true }
 });
 const emit = defineEmits(['update:modelValue', 'confirmar']);
 
+// --- ESTADO LOCAL ---
 const searchQuery = ref('');
 const materialesSeleccionados = ref([]);
+
+// --- COMPUTED / FILTRADO ---
 
 // Filtra la lista maestra del store antes de agrupar.
 const materialesFiltrados = computed(() => {
@@ -79,7 +86,7 @@ const materialesFiltrados = computed(() => {
   );
 });
 
-// Agrupa la lista filtrada por categoría (Similar a la lógica del AdminMaterialesView)
+// Agrupa la lista filtrada por categoría
 const materialesAgrupados = computed(() => {
   const matAgrupados = {};
   materialesFiltrados.value.forEach(item => {
@@ -91,6 +98,8 @@ const materialesAgrupados = computed(() => {
   });
   return matAgrupados;
 });
+
+// --- LÓGICA DE EVENTOS ---
 
 // Limpia las selecciones al abrir/cerrar el modal
 watch(() => props.modelValue, (isOpening) => {
