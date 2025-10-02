@@ -191,7 +191,8 @@ const configStore = useConfigStore()
 const tiposCirugiaStore = useTiposCirugiaStore() 
 const toastStore = useToastStore()
 
-const { generarTextoPlano, formatearFecha } = useReportGenerator() 
+// CAMBIO CLAVE: Inicializamos el composable como objeto para evitar la desestructuración que fallaba
+const reportGenerator = useReportGenerator() 
 
 const isClientesModalVisible = ref(false)
 const isMaterialesModalVisible = ref(false)
@@ -199,7 +200,7 @@ const isTiposCirugiaModalVisible = ref(false)
 const isSolicitudModalVisible = ref(false) 
 const isPreviewVisible = ref(false)
 
-// REEMPLAZAMOS EL COMPUTED con la función simple para evitar el error de compilación
+// FUNCIÓN DE AISLAMIENTO: Reemplaza el computed para evitar el error de compilación
 const getClienteSeleccionado = () => {
   const nombreCliente = formStore.formState.cliente
   if (!nombreCliente) return null
@@ -219,8 +220,7 @@ const handleClienteConfirm = (cliente) => {
 
 // FUNCIÓN: Maneja el evento blur del input Cliente para cargar el email si es autocompletado
 const handleClienteBlur = () => {
-    // Usamos la función simple en lugar del computed
-    const clienteEncontrado = getClienteSeleccionado();
+    const clienteEncontrado = getClienteSeleccionado(); // Usamos la función aislada
     if (clienteEncontrado) {
         formStore.formState.email_cliente = clienteEncontrado.email;
     } else {
@@ -251,7 +251,7 @@ const handleConfirmarPedido = (materiales) => {
   const EMAIL_DESTINO = 'comprasimplantes@districorr.com.ar'
   const asunto = `Solicitud Material: ${datos.paciente} - ${datos.cliente}`
   const materialesTexto = materiales.map(m => `- ${m.description} (Cantidad: ${m.quantity})`).join('\n')
-  const cuerpo = `Estimados,\nSe solicita el siguiente material para la cirugía del paciente ${datos.paciente}.\n\nDetalles:\n- Paciente: ${datos.paciente}\n- Cliente: ${datos.cliente}\n- Médico: ${datos.medico}\n- Fecha Cirugía: ${formatearFecha(datos.fecha_cirugia)}\n\nMaterial Solicitado:\n${materialesTexto}\n\nSaludos cordiales.`.trim()
+  const cuerpo = `Estimados,\nSe solicita el siguiente material para la cirugía del paciente ${datos.paciente}.\n\nDetalles:\n- Paciente: ${datos.paciente}\n- Cliente: ${datos.cliente}\n- Médico: ${datos.medico}\n- Fecha Cirugía: ${reportGenerator.formatearFecha(datos.fecha_cirugia)}\n\nMaterial Solicitado:\n${materialesTexto}\n\nSaludos cordiales.`.trim() // Usamos el composable
   
   window.location.href = `mailto:${EMAIL_DESTINO}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
 
@@ -261,8 +261,8 @@ const handleConfirmarPedido = (materiales) => {
   
   params.append('patient_name', datos.paciente)
   params.append('doctor_name', datos.medico)
-  params.append('client', datos.cliente) // Mapeamos 'cliente' a client (ART/Aseguradora)
-  params.append('institution', datos.lugar_cirugia) // Mapeamos 'lugar_cirugia' a institution (Hospital/Clínica)
+  params.append('client', datos.cliente) 
+  params.append('institution', datos.lugar_cirugia)
   params.append('surgery_date', datos.fecha_cirugia)
   
   const materialesParaAPI = materiales.map(item => ({
@@ -284,9 +284,9 @@ const handleEnviarACliente = () => {
     toastStore.showToast('Corrija los errores en el formulario antes de enviar.', 'warning')
     return
   }
-  const clienteData = getClienteSeleccionado(); // Usamos la función simple
+  const clienteData = getClienteSeleccionado(); // Usamos la función aislada
   if (clienteData?.email) {
-    const textoPlano = generarTextoPlano(clienteData.email)
+    const textoPlano = reportGenerator.generarTextoPlano(clienteData.email) // Usamos el objeto
     const asunto = configStore.replaceVariables(configStore.mensajes.asunto_base, formStore.formState)
     window.location.href = `mailto:${clienteData.email}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(textoPlano)}`
     toastStore.showToast('Abriendo cliente de correo.', 'info')
@@ -311,7 +311,7 @@ const handleGeneratePreview = async () => {
       }
   }
   
-  const clienteData = getClienteSeleccionado(); // Usamos la función simple
+  const clienteData = getClienteSeleccionado(); // Usamos la función aislada
   formStore.formState.email_cliente = clienteData?.email || null
   isPreviewVisible.value = true
 }
@@ -329,13 +329,13 @@ const handleSaveReport = async () => {
 }
 
 const handleWhatsApp = () => {
-  const textoPlano = generarTextoPlano(getClienteSeleccionado()?.email)
+  const textoPlano = reportGenerator.generarTextoPlano(getClienteSeleccionado()?.email)
   window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(textoPlano)}`, '_blank')
 }
 
 const handleEmail = () => {
   const asunto = configStore.replaceVariables(configStore.mensajes.asunto_base, formStore.formState)
-  const textoPlano = generarTextoPlano(getClienteSeleccionado()?.email)
+  const textoPlano = reportGenerator.generarTextoPlano(getClienteSeleccionado()?.email)
   window.location.href = `mailto:?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(textoPlano)}`
 }
 
@@ -388,7 +388,7 @@ const handleSendAuditableMail = async (mailType) => {
         }
     }
 
-    const textoPlano = generarTextoPlano(getClienteSeleccionado()?.email)
+    const textoPlano = reportGenerator.generarTextoPlano(getClienteSeleccionado()?.email) // Usamos el objeto
     const result = await formStore.sendAuditableMail(mailType, textoPlano)
     
     if (result.success) {
@@ -403,7 +403,7 @@ watch(() => formStore.actionTrigger, (trigger) => {
   if (trigger) {
     switch (trigger.name) {
       case 'generatePreview': // 'Guardar y Ver'
-        handleGeneratePreview(); 
+        handleGeneratePreview(); // Ejecutamos la acción de guardado implícito
         break;
       case 'saveReport':
         handleSaveReport(); // Si el botón explícito de Guardar es presionado
