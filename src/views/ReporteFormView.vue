@@ -199,11 +199,12 @@ const isTiposCirugiaModalVisible = ref(false)
 const isSolicitudModalVisible = ref(false) 
 const isPreviewVisible = ref(false)
 
-const clienteSeleccionado = computed(() => {
+// REEMPLAZAMOS EL COMPUTED con la función simple para evitar el error de compilación
+const getClienteSeleccionado = () => {
   const nombreCliente = formStore.formState.cliente
   if (!nombreCliente) return null
   return clientesStore.allClients.find(c => c.nombre === nombreCliente)
-})
+}
 
 onMounted(() => {
   configStore.fetchMensajes() 
@@ -218,7 +219,8 @@ const handleClienteConfirm = (cliente) => {
 
 // FUNCIÓN: Maneja el evento blur del input Cliente para cargar el email si es autocompletado
 const handleClienteBlur = () => {
-    const clienteEncontrado = clientesStore.allClients.find(c => c.nombre === formStore.formState.cliente);
+    // Usamos la función simple en lugar del computed
+    const clienteEncontrado = getClienteSeleccionado();
     if (clienteEncontrado) {
         formStore.formState.email_cliente = clienteEncontrado.email;
     } else {
@@ -282,10 +284,11 @@ const handleEnviarACliente = () => {
     toastStore.showToast('Corrija los errores en el formulario antes de enviar.', 'warning')
     return
   }
-  if (clienteSeleccionado.value?.email) {
-    const textoPlano = generarTextoPlano(clienteSeleccionado.value.email)
+  const clienteData = getClienteSeleccionado(); // Usamos la función simple
+  if (clienteData?.email) {
+    const textoPlano = generarTextoPlano(clienteData.email)
     const asunto = configStore.replaceVariables(configStore.mensajes.asunto_base, formStore.formState)
-    window.location.href = `mailto:${clienteSeleccionado.value.email}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(textoPlano)}`
+    window.location.href = `mailto:${clienteData.email}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(textoPlano)}`
     toastStore.showToast('Abriendo cliente de correo.', 'info')
   } else {
     toastStore.showToast('El cliente seleccionado no tiene un email registrado.', 'warning')
@@ -308,7 +311,8 @@ const handleGeneratePreview = async () => {
       }
   }
   
-  formStore.formState.email_cliente = clienteSeleccionado.value?.email || null
+  const clienteData = getClienteSeleccionado(); // Usamos la función simple
+  formStore.formState.email_cliente = clienteData?.email || null
   isPreviewVisible.value = true
 }
 
@@ -325,13 +329,13 @@ const handleSaveReport = async () => {
 }
 
 const handleWhatsApp = () => {
-  const textoPlano = generarTextoPlano(clienteSeleccionado.value?.email)
+  const textoPlano = generarTextoPlano(getClienteSeleccionado()?.email)
   window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(textoPlano)}`, '_blank')
 }
 
 const handleEmail = () => {
   const asunto = configStore.replaceVariables(configStore.mensajes.asunto_base, formStore.formState)
-  const textoPlano = generarTextoPlano(clienteSeleccionado.value?.email)
+  const textoPlano = generarTextoPlano(getClienteSeleccionado()?.email)
   window.location.href = `mailto:?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(textoPlano)}`
 }
 
@@ -384,7 +388,7 @@ const handleSendAuditableMail = async (mailType) => {
         }
     }
 
-    const textoPlano = generarTextoPlano(clienteSeleccionado.value?.email)
+    const textoPlano = generarTextoPlano(getClienteSeleccionado()?.email)
     const result = await formStore.sendAuditableMail(mailType, textoPlano)
     
     if (result.success) {
@@ -399,7 +403,7 @@ watch(() => formStore.actionTrigger, (trigger) => {
   if (trigger) {
     switch (trigger.name) {
       case 'generatePreview': // 'Guardar y Ver'
-        handleGeneratePreview(); // Esta función ahora guarda implícitamente
+        handleGeneratePreview(); 
         break;
       case 'saveReport':
         handleSaveReport(); // Si el botón explícito de Guardar es presionado
