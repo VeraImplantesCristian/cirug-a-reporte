@@ -10,6 +10,10 @@ const formatearFecha = (fechaISO) => {
     return `${day}/${month}/${year}`;
 }
 
+// Función auxiliar para formatear texto multilínea para HTML
+const formatTextForHTML = (text) => text ? text.replace(/\n/g, '<br>') : '<span style="color: #9ca3af; font-style: italic;">No especificado.</span>';
+
+
 export function useReportGenerator() {
     const formStore = useFormStore();
     const configStore = useConfigStore();
@@ -20,7 +24,6 @@ export function useReportGenerator() {
         const replace = configStore.replaceVariables;
         
         // --- 1. Definición de Variables (para Plantilla) ---
-        // Estas claves deben coincidir con los placeholders que el admin puede usar: {CLIENTE}, {FECHA}, etc.
         const variables = { 
             CLIENTE: datos.cliente, 
             PACIENTE: datos.paciente, 
@@ -39,13 +42,6 @@ export function useReportGenerator() {
         
         // --- 3. Generación del Bloque de Datos Principales (Usando Plantilla Multilínea) ---
         let estructuraDatos = mensajes.estructura_datos_principales || '';
-
-        // Si el cliente tiene email, lo añadimos a la plantilla de estructura.
-        // Esto le da al admin el control de la estructura, pero lo hacemos opcional aquí.
-        if (variables.EMAIL_CLIENTE) {
-            // Asumimos que la plantilla ya tiene una línea con {EMAIL_CLIENTE} o la añadimos.
-            // Para simplificar, asumimos que el admin añade la línea con {EMAIL_CLIENTE} si la quiere.
-        }
 
         const bloqueDatosPrincipal = replace(estructuraDatos, variables);
 
@@ -79,9 +75,73 @@ ${bloqueAdicional}
         `.trim();
     };
 
+    // --- REIMPLEMENTACIÓN CLAVE DE HTML ENRIQUECIDO ---
     const generarHTMLReporte = (clienteEmail) => {
-        // La generación de HTML es un espejo de la generación de texto plano.
-        return `<div style="white-space: pre-wrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">${generarTextoPlano(clienteEmail)}</div>`;
+        const datos = formStore.formState;
+        const mensajes = configStore.mensajes;
+        
+        const fechaCirugiaFormateada = formatearFecha(datos.fecha_cirugia);
+        const fechaEnvioFormateada = formatearFecha(datos.fecha_envio);
+
+        // Funcióin auxiliar para añadir una línea de dato a la tabla
+        const dataRow = (label, value) => `
+            <tr>
+                <td style="font-weight: 600; padding: 4px 10px; width: 140px; color: #1f2937;">${label}:</td>
+                <td style="padding: 4px 10px; color: #374151;">${value || 'N/E'}</td>
+            </tr>
+        `;
+
+        // Generación de la lista de material (HTML)
+        const materialItems = (datos.material || '')
+            .split('\n')
+            .filter(l => l.trim() !== '')
+            .map(l => `<li style="margin-bottom: 5px;">${l.trim()}</li>`)
+            .join('');
+            
+        const materialListHTML = materialItems ? `<ul style="list-style: disc; margin: 0; padding-left: 20px;">${materialItems}</ul>` : '<p style="color: #9ca3af; font-style: italic;">No especificado.</p>';
+        
+        // Generación del bloque de observaciones
+        const observacionesHTML = datos.observaciones ? `
+            <div style="margin-top: 15px; border-top: 1px dashed #e5e7eb; padding-top: 10px;">
+                <p style="font-weight: 600; color: #dc2626;">⚠︎ Observaciones:</p>
+                <p style="color: #4b5563;">${formatTextForHTML(datos.observaciones)}</p>
+            </div>
+        ` : '';
+
+        // Generación del HTML final
+        return `
+            <div style="font-family: Arial, sans-serif; font-size: 14px; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px;">
+                
+                <h2 style="font-size: 20px; font-weight: 700; color: #1f2937; text-align: center; margin-bottom: 15px;">
+                    📝 Reporte de Cirugía
+                </h2>
+                <p style="margin-bottom: 20px; color: #4b5563; text-align: center;">${mensajes.cuerpo_reporte_inicio || 'Estimados, Adjunto detalles de la cirugía programada:'}</p>
+
+                <!-- Bloque de Datos Principales (Tabla) -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden; margin-bottom: 20px; background-color: #f9fafb;">
+                    ${dataRow('Paciente', datos.paciente)}
+                    ${dataRow('Médico', datos.medico)}
+                    ${dataRow('Cliente/ART', datos.cliente)}
+                    ${datos.email_cliente ? dataRow('Email Cliente', datos.email_cliente) : ''}
+                    ${dataRow('Fecha Cirugía', fechaCirugiaFormateada)}
+                    ${dataRow('Lugar', datos.lugar_cirugia)}
+                    ${dataRow('Tipo de Cirugía', datos.tipo_cirugia)}
+                    ${dataRow('Fecha de Envío', fechaEnvioFormateada)}
+                </table>
+
+                <!-- Bloque Material Requerido -->
+                <div style="border-bottom: 2px solid #10b981; padding-bottom: 5px; margin-bottom: 10px;">
+                    <h3 style="font-size: 16px; font-weight: 700; color: #10b981;">📦 ${mensajes.cuerpo_material_requerido || 'Material Requerido'}</h3>
+                </div>
+                ${materialListHTML}
+
+                <!-- Observaciones -->
+                ${observacionesHTML}
+                
+                <!-- Cierre -->
+                <p style="margin-top: 20px; color: #4b5563;">${mensajes.msg_saludos_final || 'Saludos cordiales.'}</p>
+            </div>
+        `;
     };
 
     return {
