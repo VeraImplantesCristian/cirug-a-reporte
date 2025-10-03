@@ -9,7 +9,37 @@
     <!-- Sección de Filtros -->
     <div class="bg-white p-6 rounded-lg shadow-md border mb-8 filter-card">
       <h3 class="text-lg font-semibold text-gray-800 border-b pb-3 mb-6">Filtros de Búsqueda</h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 items-end">
+        
+        <!-- Ordenar Por -->
+        <div class="form-group">
+          <label for="orderBy" class="block text-sm font-medium text-gray-700 mb-1">Ordenar Por</label>
+          <select
+            id="orderBy"
+            v-model="store.filters.orderBy"
+            @change="store.fetchReportes"
+            class="w-full p-2 border rounded-md"
+          >
+            <option value="fecha_cirugia">Fecha Cirugía</option>
+            <option value="created_at">Fecha Emisión/Creación</option>
+            <option value="paciente">Paciente (A-Z)</option>
+          </select>
+        </div>
+
+        <!-- Dirección de Orden -->
+        <div class="form-group">
+          <label for="orderDirection" class="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+          <select
+            id="orderDirection"
+            v-model="store.filters.orderDirection"
+            @change="store.fetchReportes"
+            class="w-full p-2 border rounded-md"
+          >
+            <option value="desc">Más Reciente Primero</option>
+            <option value="asc">Más Antiguo Primero</option>
+          </select>
+        </div>
+
         <!-- Búsqueda General -->
         <div class="form-group">
           <label for="searchTerm" class="block text-sm font-medium text-gray-700 mb-1">Buscar (Cliente, Paciente, Médico)</label>
@@ -150,7 +180,7 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
 import { useReportesAdminStore } from '../stores/reportesAdminStore'
-import { debounce } from 'lodash'; // Asegúrate de tener lodash instalado: npm install lodash
+import { debounce } from 'lodash'; 
 
 // Importamos el modal de detalles
 import ReporteDetalleModal from '../components/ReporteDetalleModal.vue'
@@ -177,6 +207,7 @@ const abrirModalDetalle = (reporte) => {
 }
 
 // Observar cambios en los filtros para recargar la primera página.
+// Usamos watch en los filtros individuales para asegurar que se dispare el fetch
 watch(() => store.filters.clienteFiltro, () => {
   store.currentPage = 1;
   store.fetchReportes();
@@ -190,6 +221,15 @@ watch(() => store.filters.fechaDesde, () => {
   store.fetchReportes();
 });
 watch(() => store.filters.fechaHasta, () => {
+  store.currentPage = 1;
+  store.fetchReportes();
+});
+// Observar cambios en el ordenamiento
+watch(() => store.filters.orderBy, () => {
+  store.currentPage = 1;
+  store.fetchReportes();
+});
+watch(() => store.filters.orderDirection, () => {
   store.currentPage = 1;
   store.fetchReportes();
 });
