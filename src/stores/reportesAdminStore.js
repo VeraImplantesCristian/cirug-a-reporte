@@ -1,7 +1,7 @@
 // src/stores/reportesAdminStore.js
 
 import { defineStore } from 'pinia'
-import { ref, computed, reactive } from 'vue' // Importamos 'reactive' para los filtros
+import { ref, computed, reactive } from 'vue'
 import { supabase } from '../supabase'
 
 export const useReportesAdminStore = defineStore('reportesAdmin', () => {
@@ -16,6 +16,9 @@ export const useReportesAdminStore = defineStore('reportesAdmin', () => {
     fechaHasta: '',
     clienteFiltro: '',
     medicoFiltro: '',
+    // NUEVO: Campos de ordenamiento
+    orderBy: 'fecha_cirugia', // Por defecto: ordenar por fecha de cirugía
+    orderDirection: 'desc', // Por defecto: Más reciente primero
   })
   const currentPage = ref(1)
   const rowsPerPage = ref(10) // 10 reportes por página
@@ -84,10 +87,13 @@ export const useReportesAdminStore = defineStore('reportesAdmin', () => {
       // Ordenar y paginar
       const from = (currentPage.value - 1) * rowsPerPage.value
       const to = from + rowsPerPage.value - 1
+      
+      const ascending = filters.orderDirection === 'asc';
 
+      // CAMBIO CLAVE: Ordenar por el campo seleccionado por el usuario
       query = query
-        .order('fecha_cirugia', { ascending: false }) // Ordenar por fecha de cirugía (más reciente primero)
-        .order('created_at', { ascending: false }) // Desempate por fecha de creación
+        .order(filters.orderBy, { ascending: ascending }) 
+        .order('created_at', { ascending: false }) // Usamos created_at como desempate final
         .range(from, to)
 
       const { data, error, count } = await query
@@ -128,6 +134,9 @@ export const useReportesAdminStore = defineStore('reportesAdmin', () => {
     filters.fechaHasta = ''
     filters.clienteFiltro = ''
     filters.medicoFiltro = ''
+    // Restaurar ordenamiento por defecto
+    filters.orderBy = 'fecha_cirugia' 
+    filters.orderDirection = 'desc'
     currentPage.value = 1 // Volver a la primera página al resetear
     fetchReportes()
   }
