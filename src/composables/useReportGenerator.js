@@ -24,6 +24,7 @@ export function useReportGenerator() {
         const replace = configStore.replaceVariables;
         
         // --- 1. Definición de Variables (para Plantilla) ---
+        // Estas claves deben coincidir con los placeholders que el admin puede usar: {CLIENTE}, {FECHA}, etc.
         const variables = { 
             CLIENTE: datos.cliente, 
             PACIENTE: datos.paciente, 
@@ -32,7 +33,8 @@ export function useReportGenerator() {
             FECHA: formatearFecha(datos.fecha_cirugia), 
             LUGAR: datos.lugar_cirugia, 
             TIPO_CIRUGIA: datos.tipo_cirugia, 
-            EMAIL_CLIENTE: clienteEmail 
+            EMAIL_CLIENTE: clienteEmail,
+            FECHA_ENVIO: formatearFecha(datos.fecha_envio) // Incluimos Fecha de Envío
         };
         
         // --- 2. Obtención de Mensajes Configurables ---
@@ -90,8 +92,22 @@ ${bloqueAdicional}
                 <td style="padding: 4px 10px; color: #374151;">${value || 'N/E'}</td>
             </tr>
         `;
+        
+        // 1. Generación de las filas de datos
+        // NOTA: El orden y las etiquetas se definen aquí en el HTML para el estilo enriquecido
+        const datosPrincipalesHTML = `
+            ${dataRow('Paciente', datos.paciente)}
+            ${dataRow('Médico', datos.medico)}
+            ${dataRow('Instrumentador', datos.instrumentador)}
+            ${dataRow('Cliente/ART', datos.cliente)}
+            ${datos.email_cliente ? dataRow('Email Cliente', clienteEmail) : ''}
+            ${dataRow('Fecha Cirugía', fechaCirugiaFormateada)}
+            ${dataRow('Fecha Envío', fechaEnvioFormateada)}
+            ${dataRow('Lugar', datos.lugar_cirugia)}
+            ${dataRow('Tipo de Cirugía', datos.tipo_cirugia)}
+        `;
 
-        // Generación de la lista de material (HTML)
+        // 2. Generación de la lista de material (HTML)
         const materialItems = (datos.material || '')
             .split('\n')
             .filter(l => l.trim() !== '')
@@ -100,7 +116,7 @@ ${bloqueAdicional}
             
         const materialListHTML = materialItems ? `<ul style="list-style: disc; margin: 0; padding-left: 20px;">${materialItems}</ul>` : '<p style="color: #9ca3af; font-style: italic;">No especificado.</p>';
         
-        // Generación del bloque de observaciones
+        // 3. Generación del bloque de observaciones
         const observacionesHTML = datos.observaciones ? `
             <div style="margin-top: 15px; border-top: 1px dashed #e5e7eb; padding-top: 10px;">
                 <p style="font-weight: 600; color: #dc2626;">⚠︎ Observaciones:</p>
@@ -119,14 +135,7 @@ ${bloqueAdicional}
 
                 <!-- Bloque de Datos Principales (Tabla) -->
                 <table width="100%" cellpadding="0" cellspacing="0" style="border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden; margin-bottom: 20px; background-color: #f9fafb;">
-                    ${dataRow('Paciente', datos.paciente)}
-                    ${dataRow('Médico', datos.medico)}
-                    ${dataRow('Cliente/ART', datos.cliente)}
-                    ${datos.email_cliente ? dataRow('Email Cliente', datos.email_cliente) : ''}
-                    ${dataRow('Fecha Cirugía', fechaCirugiaFormateada)}
-                    ${dataRow('Lugar', datos.lugar_cirugia)}
-                    ${dataRow('Tipo de Cirugía', datos.tipo_cirugia)}
-                    ${dataRow('Fecha de Envío', fechaEnvioFormateada)}
+                    ${datosPrincipalesHTML}
                 </table>
 
                 <!-- Bloque Material Requerido -->
