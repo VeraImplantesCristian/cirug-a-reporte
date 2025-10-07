@@ -12,71 +12,76 @@
 
     <template #footer>
       <!-- Contenedor flexible para los botones y texto de ayuda en el footer -->
-      <div class="flex flex-col items-end gap-2">
-        <div class="flex gap-2">
-          <!-- Botón para copiar el reporte como texto plano -->
-          <button @click="handleCopiarTextoPlano" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 flex items-center gap-1 text-sm">
-            📋 Copiar Texto Plano
-          </button>
-          <!-- Botón para copiar el reporte como HTML para email -->
-          <button @click="handleCopiarHtmlEmail" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 flex items-center gap-1 text-sm">
-            📧 Copiar HTML para Email
-          </button>
+      <!-- Usamos justify-between para asegurar que los botones de acción queden a la izquierda y el de Cerrar a la derecha -->
+      <div class="flex justify-between w-full"> 
+        
+        <!-- Grupo de Acciones (Izquierda) -->
+        <div class="flex flex-col items-start gap-2">
+            <div class="flex gap-2 flex-wrap">
+              <!-- Botón Solicitar Pedido (NUEVO) -->
+              <button @click="handleSolicitarPedido" class="bg-yellow-500 text-gray-800 px-4 py-2 rounded-md hover:bg-yellow-600 font-bold flex items-center gap-1 text-sm">
+                📧 Solicitar Pedido
+              </button>
+              <!-- Botón para copiar el reporte como texto plano -->
+              <button @click="handleCopiarTextoPlano" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center gap-1 text-sm">
+                📋 Texto Plano
+              </button>
+              <!-- Botón para copiar el reporte como HTML para email -->
+              <button @click="handleCopiarHtmlEmail" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 flex items-center gap-1 text-sm">
+                📧 Copiar HTML
+              </button>
+            </div>
+            
+            <!-- Pequeño texto de ayuda para los botones de copiado -->
+            <small class="text-gray-500 text-xs text-left">
+              HTML para Gmail/Outlook web. Texto plano para WhatsApp/Mailto.
+            </small>
         </div>
-        <!-- Pequeño texto de ayuda para los botones de copiado -->
-        <small class="text-gray-500 text-xs text-right">
-          HTML para Gmail/Outlook web. Texto plano para WhatsApp/Mailto.
-        </small>
+
+        <!-- Botón para cerrar el modal (Derecha) -->
+        <button @click="$emit('update:modelValue', false)" class="bg-gray-200 px-4 py-2 rounded-md hover:bg-gray-300">
+          Cerrar
+        </button>
       </div>
-      <!-- Botón para cerrar el modal -->
-      <button @click="$emit('update:modelValue', false)" class="bg-gray-200 px-4 py-2 rounded-md hover:bg-gray-300">
-        Cerrar
-      </button>
     </template>
   </BaseModal>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import BaseModal from './BaseModal.vue' // Importa el componente base del modal
-import { copyHtmlToClipboard } from '../utils/clipboard' // Importa la función auxiliar para copiar HTML
-import { useToastStore } from '../stores/toastStore' // Importa el store de notificaciones
+import BaseModal from './BaseModal.vue'
+import { copyHtmlToClipboard } from '../utils/clipboard'
+import { useToastStore } from '../stores/toastStore'
+import { useFormStore } from '../stores/formStore' // Importamos el formStore
 
 // Definimos las propiedades que este componente puede recibir de su padre.
 const props = defineProps({
-  modelValue: { type: Boolean, required: true }, // Controla la visibilidad del modal (v-model)
+  modelValue: { type: Boolean, required: true },
   reporteData: { type: Object, default: () => ({}) } // Los datos del reporte a mostrar
 })
 
 // Definimos los eventos que este componente puede emitir a su padre.
 const emit = defineEmits(['update:modelValue'])
 
-// Instancia del store de notificaciones para mostrar mensajes al usuario.
+// Instanciamos los stores
 const toastStore = useToastStore()
+const formStore = useFormStore()
 
-// Función auxiliar para formatear una fecha de 'YYYY-MM-DD' a 'DD/MM/YYYY'.
+
+// --- FUNCIONES PARA GENERAR EL CONTENIDO DEL REPORTE (AQUÍ DEBERÍA USARSE EL COMPOSABLE) ---
+
 const formatearFecha = (fechaISO) => {
   if (!fechaISO) return null
   const [year, month, day] = fechaISO.split('-')
   return `${day}/${month}/${year}`
 }
 
-// Función auxiliar para formatear texto de un textarea a HTML (reemplaza saltos de línea con <br>).
-// También maneja el caso de "No especificado" con estilo.
 const formatTextForHTML = (text) => text ? text.replace(/\n/g, '<br>') : '<span style="color: #888; font-style: italic;">No especificado.</span>';
 
-// --- FUNCIONES PARA GENERAR EL CONTENIDO DEL REPORTE ---
-
-/**
- * Genera el reporte completo en formato de texto plano (Markdown básico).
- * Ideal para copiar a WhatsApp, correos via mailto, o editores de texto simple.
- * @param {Object} datos - Objeto con todos los campos del reporte.
- * @returns {string} El reporte formateado como texto plano.
- */
+// NOTA: Estas funciones son la lógica original. En un proyecto refactorizado, llamarían al useReportGenerator.
 const generarTextoPlanoCompleto = (datos) => {
   const fechaCirugiaFormateada = formatearFecha(datos.fecha_cirugia) || 'No especificada'
   const fechaEnvioFormateada = formatearFecha(datos.fecha_envio)
-  // Determina si hay email del cliente para incluirlo en el texto plano.
   const emailClienteTexto = datos.email_cliente
     ? `\n- *Email Cliente:* ${datos.email_cliente}` 
     : '';
@@ -92,29 +97,40 @@ ${datos.mensaje_inicio || 'Detalles de la cirugía programada:'}
 - *Lugar:* ${datos.lugar_cirugia || 'No especificado'}
 - *Tipo de Cirugía:* ${datos.tipo_cirugia || 'No especificado'}
 ${fechaEnvioFormateada ? `- *Fecha de Envío:* ${fechaEnvioFormateada}` : ''}
-
 *Material Requerido:*
 ${(datos.material || '').split('\n').filter(l => l.trim() !== '').map(l => `- ${l.trim()}`).join('\n') || '- No especificado'}
-
 ${datos.observaciones ? `*Observaciones:*\n${datos.observaciones}\n` : ''}
 ${datos.info_adicional ? `*Info Adicional:*\n${datos.info_adicional}\n` : ''}
-
 Saludos, quedo al pendiente.
   `.trim();
 }
 
-/**
- * Genera el reporte completo en formato HTML con estilos inline para alta compatibilidad en emails.
- * Ideal para copiar y pegar en clientes de correo avanzados (Gmail, Outlook web).
- * @param {Object} datos - Objeto con todos los campos del reporte.
- * @returns {string} El reporte formateado como HTML.
- */
 const generarHTMLReporteCompleto = (datos) => {
-  // Formatea fechas, mostrando un estilo diferente si no están especificadas.
   const fechaCirugiaFormateada = formatearFecha(datos.fecha_cirugia) || '<span style="color: #888; font-style: italic;">No especificada.</span>'
   const fechaEnvioFormateada = formatearFecha(datos.fecha_envio)
 
-  // Prepara la lista de materiales, aplicando estilos y manejo de "No especificado".
+  // Función para añadir una línea de dato a la tabla (usada por el código original)
+  const dataRow = (label, value) => `
+      <tr>
+          <td style="font-weight: 600; padding: 4px 10px; width: 140px; color: #1f2937;">${label}:</td>
+          <td style="padding: 4px 10px; color: #374151;">${value || 'N/E'}</td>
+      </tr>
+  `;
+
+  // Filas de datos principales (estructura de tabla)
+  const datosPrincipalesHTML = `
+      ${dataRow('Cliente', datos.cliente)}
+      ${dataRow('Paciente', datos.paciente)}
+      ${dataRow('Médico', datos.medico)}
+      ${dataRow('Instrumentador', datos.instrumentador)}
+      ${dataRow('Fecha Cirugía', fechaCirugiaFormateada)}
+      ${dataRow('Lugar', datos.lugar_cirugia)}
+      ${dataRow('Tipo de Cirugía', datos.tipo_cirugia)}
+      ${dataRow('Fecha Envío', fechaEnvioFormateada)}
+      ${datos.email_cliente ? dataRow('Email Cliente', datos.email_cliente) : ''}
+  `;
+
+  // Prepara la lista de materiales (HTML)
   let materialListItems = (datos.material || '')
     .split('\n')
     .filter(l => l.trim() !== '')
@@ -122,87 +138,60 @@ const generarHTMLReporteCompleto = (datos) => {
     .join('');
   if (!materialListItems) materialListItems = `<li style="margin-bottom: 4px; color: #888; font-style: italic;">No especificado.</li>`;
 
+  // Bloque de observaciones
+  const observacionesHTML = datos.observaciones ? `
+      <tr>
+        <td colspan="2" style="font-size: 16px; font-weight: bold; padding-top: 15px; padding-bottom: 8px; border-bottom: 1px solid #e0e0e0; color: #007bff;">
+          Observaciones:
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" style="padding-top: 10px; padding-bottom: 20px;">
+          <p style="margin: 0; font-size: 15px; color: #555;">${formatTextForHTML(datos.observaciones)}</p>
+        </td>
+      </tr>
+  ` : '';
+  
   // Retorna el template HTML con estilos inline.
   return `
-    <div style="font-family: 'Roboto', 'Arial', sans-serif; font-size: 14px; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 25px; background-color: #ffffff;">
+    <div style="font-family: Arial, sans-serif; font-size: 14px; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 25px; background-color: #ffffff;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0" style="color: #333;">
+        <!-- Título -->
+        <tr><td colspan="2" style="text-align: center; font-size: 20px; font-weight: bold; color: #1f2937; padding-bottom: 15px;">📝 Reporte de Cirugía</td></tr>
+        <tr><td colspan="2" style="padding-bottom: 15px;"><p style="margin: 0; font-size: 15px; color: #555;">${datos.mensaje_inicio || 'Detalles de la cirugía programada:'}</p></td></tr>
+
+        <!-- Datos Principales (Tabla) -->
+        ${datosPrincipalesHTML}
+
+        <!-- Material Requerido -->
         <tr>
-          <td style="text-align: center; font-size: 22px; font-weight: bold; color: #0056b3; padding-bottom: 20px;">
-            📝 Reporte de Cirugía
-          </td>
-        </tr>
-        <tr>
-          <td style="padding-bottom: 15px;">
-            <p style="margin: 0; font-size: 15px; color: #555;">${datos.mensaje_inicio || 'Detalles de la cirugía programada:'}</p>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <ul style="list-style: none; padding: 0; margin: 0 0 20px 0; font-size: 15px;">
-              <li style="margin-bottom: 7px;"><strong>Cliente:</strong> ${datos.cliente || '<span style="color: #888; font-style: italic;">No especificado.</span>'}</li>
-              ${datos.email_cliente ? `<li style="margin-bottom: 7px;"><strong>Email Cliente:</strong> ${datos.email_cliente}</li>` : ''}
-              <li style="margin-bottom: 7px;"><strong>Paciente:</strong> ${datos.paciente || '<span style="color: #888; font-style: italic;">No especificado.</span>'}</li>
-              <li style="margin-bottom: 7px;"><strong>Médico:</strong> ${datos.medico || '<span style="color: #888; font-style: italic;">No especificado.</span>'}</li>
-              <li style="margin-bottom: 7px;"><strong>Instrumentador:</strong> ${datos.instrumentador || '<span style="color: #888; font-style: italic;">No especificado.</span>'}</li>
-              <li style="margin-bottom: 7px;"><strong>Fecha de Cirugía:</strong> ${fechaCirugiaFormateada}</li>
-              <li style="margin-bottom: 7px;"><strong>Lugar:</strong> ${datos.lugar_cirugia || '<span style="color: #888; font-style: italic;">No especificado.</span>'}</li>
-              <li style="margin-bottom: 7px;"><strong>Tipo de Cirugía:</strong> ${datos.tipo_cirugia || '<span style="color: #888; font-style: italic;">No especificado.</span>'}</li>
-              ${fechaEnvioFormateada ? `<li style="margin-bottom: 7px;"><strong>Fecha de Envío:</strong> ${fechaEnvioFormateada}</li>` : ''}
-            </ul>
-          </td>
-        </tr>
-        <tr>
-          <td style="font-size: 16px; font-weight: bold; padding-top: 15px; padding-bottom: 8px; border-bottom: 1px solid #e0e0e0; color: #007bff;">
+          <td colspan="2" style="font-size: 16px; font-weight: bold; padding-top: 15px; padding-bottom: 8px; border-bottom: 1px solid #e0e0e0; color: #007bff;">
             Material Requerido:
           </td>
         </tr>
         <tr>
-          <td style="padding-top: 10px; padding-bottom: 20px;">
+          <td colspan="2" style="padding-top: 10px; padding-bottom: 20px;">
             <ul style="list-style: disc; margin: 0; padding-left: 20px; font-size: 15px;">${materialListItems}</ul>
           </td>
         </tr>
-        ${datos.observaciones ? `
-        <tr>
-          <td style="font-size: 16px; font-weight: bold; padding-top: 15px; padding-bottom: 8px; border-bottom: 1px solid #e0e0e0; color: #007bff;">
-            Observaciones:
-          </td>
-        </tr>
-        <tr>
-          <td style="padding-top: 10px; padding-bottom: 20px;">
-            <p style="margin: 0; font-size: 15px; color: #555;">${formatTextForHTML(datos.observaciones)}</p>
-          </td>
-        </tr>` : ''}
-        ${datos.info_adicional ? `
-        <tr>
-          <td style="font-size: 16px; font-weight: bold; padding-top: 15px; padding-bottom: 8px; border-bottom: 1px solid #e0e0e0; color: #007bff;">
-            Información Adicional:
-          </td>
-        </tr>
-        <tr>
-          <td style="padding-top: 10px; padding-bottom: 20px;">
-            <p style="margin: 0; font-size: 15px; color: #555;">${formatTextForHTML(datos.info_adicional)}</p>
-          </td>
-        </tr>` : ''}
-        <tr>
-          <td style="padding-top: 25px;">
-            <p style="margin: 0; font-size: 15px; color: #555;">Saludos, quedo al pendiente.</p>
-          </td>
-        </tr>
+
+        <!-- Observaciones -->
+        ${observacionesHTML}
+
+        <!-- Cierre -->
+        <tr><td colspan="2" style="padding-top: 25px;"><p style="margin: 0; font-size: 15px; color: #555;">Saludos, quedo al pendiente.</p></td></tr>
       </table>
     </div>
   `;
 }
 
+
 // Propiedad computada que se usa para renderizar el HTML en el cuerpo del modal.
-// Se actualiza automáticamente cada vez que 'props.reporteData' cambia.
 const formattedReportHTML = computed(() => generarHTMLReporteCompleto(props.reporteData))
+
 
 // --- FUNCIONES DE ACCIÓN PARA COPIAR ---
 
-/**
- * Maneja el evento de clic para copiar el reporte como texto plano al portapapeles.
- * Muestra un toast de éxito o error.
- */
 const handleCopiarTextoPlano = async () => {
   try {
     const textoPlano = generarTextoPlanoCompleto(props.reporteData)
@@ -214,14 +203,10 @@ const handleCopiarTextoPlano = async () => {
   }
 }
 
-/**
- * Maneja el evento de clic para copiar el reporte como HTML enriquecido al portapapeles.
- * Utiliza la función auxiliar 'copyHtmlToClipboard' y muestra un toast de éxito o error.
- */
 const handleCopiarHtmlEmail = async () => {
   try {
     const htmlContent = generarHTMLReporteCompleto(props.reporteData)
-    const textContent = generarTextoPlanoCompleto(props.reporteData) // Se incluye fallback de texto plano
+    const textContent = generarTextoPlanoCompleto(props.reporteData) 
     
     await copyHtmlToClipboard(htmlContent, textContent)
 
@@ -230,5 +215,21 @@ const handleCopiarHtmlEmail = async () => {
     console.error('Error al copiar el reporte (HTML):', error)
     toastStore.showToast('Error al copiar el reporte como HTML.', 'error')
   }
+}
+
+// --- NUEVA FUNCIÓN: Dispara el modal de solicitud de pedido ---
+const handleSolicitarPedido = () => {
+    // Paso 1: Cargamos los datos del reporte a la vista principal
+    // NOTA: Es crucial que el objeto reporteData tenga todos los campos del formState
+    // para que el formulario principal no pierda contexto (ej: id del reporte).
+    formStore.formState = { ...formStore.formState, ...props.reporteData };
+    
+    // Paso 2: Disparamos la acción de solicitud de pedido (que abre el modal en ReporteFormView.vue)
+    formStore.triggerSolicitarPedido();
+    
+    // Paso 3: Cerramos este modal de detalle
+    emit('update:modelValue', false);
+    
+    toastStore.showToast('Reporte cargado en formulario. Abra "Pedido" para finalizar.', 'info');
 }
 </script>
