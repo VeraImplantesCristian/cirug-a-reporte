@@ -10,6 +10,13 @@ const router = createRouter({
       name: 'home',
       component: () => import('../views/ReporteFormView.vue')
     },
+    // --- NUEVA RUTA PARA LA HERRAMIENTA PIVOT ---
+    // Se añade la ruta /pivot que carga el componente PivotView que acabamos de crear.
+    {
+      path: '/pivot',
+      name: 'pivot',
+      component: () => import('../views/PivotView.vue')
+    },
     // RUTA DASHBOARD
     {
       path: '/dashboard',
