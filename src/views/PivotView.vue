@@ -11,21 +11,17 @@
       <div class="bg-white p-6 rounded-lg shadow-md">
         <form @submit.prevent="generarMensajes" class="space-y-5">
           
-          <!-- Campo Cliente con Autocompletado -->
+          <!-- Campos del formulario con autocompletado (sin cambios) -->
           <div class="relative">
             <label for="cliente" class="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none pt-6">
               <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
             </div>
-            <!-- El atributo 'list' conecta este input con el <datalist> de abajo -->
             <input v-model="formData.cliente" type="text" id="cliente" list="clientes-list" class="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="Ej: OSDE">
-            <!-- DATALIST: Contiene las opciones de autocompletado para Clientes -->
             <datalist id="clientes-list">
               <option v-for="cliente in pivotStore.sugerencias.clientes" :key="cliente" :value="cliente" />
             </datalist>
           </div>
-
-          <!-- Campo Nosocomio con Autocompletado -->
           <div class="relative">
             <label for="nosocomio" class="block text-sm font-medium text-gray-700 mb-1">Nosocomio</label>
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none pt-6">
@@ -36,8 +32,6 @@
               <option v-for="nosocomio in pivotStore.sugerencias.nosocomios" :key="nosocomio" :value="nosocomio" />
             </datalist>
           </div>
-
-          <!-- Campo Doctor con Autocompletado -->
           <div class="relative">
             <label for="doctor" class="block text-sm font-medium text-gray-700 mb-1">Doctor</label>
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none pt-6">
@@ -48,8 +42,6 @@
               <option v-for="doctor in pivotStore.sugerencias.doctores" :key="doctor" :value="doctor" />
             </datalist>
           </div>
-
-          <!-- Campo Paciente (sin autocompletado) -->
           <div class="relative">
             <label for="paciente" class="block text-sm font-medium text-gray-700 mb-1">Paciente</label>
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none pt-6">
@@ -57,8 +49,6 @@
             </div>
             <input v-model="formData.paciente" type="text" id="paciente" class="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="Ej: Juan Pérez">
           </div>
-
-          <!-- Campos de texto libre -->
           <div>
             <label for="implantes" class="block text-sm font-medium text-gray-700 mb-1">Implantes/Descartables</label>
             <textarea v-model="formData.implantes" id="implantes" rows="3" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="Listar materiales..."></textarea>
@@ -75,6 +65,20 @@
             <input v-model="formData.disponibilidad" type="date" id="disponibilidad" class="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
           </div>
 
+          <!-- *** NUEVO BOTÓN DE LIMPIEZA *** -->
+          <!-- Contenedor para alinear el botón a la derecha -->
+          <div class="flex justify-end">
+            <!-- Usamos type="button" para evitar que envíe el formulario -->
+            <button 
+              type="button" 
+              @click="limpiarFormulario"
+              class="flex items-center px-3 py-1 text-sm font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-colors"
+            >
+              <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              Limpiar Formulario
+            </button>
+          </div>
+
           <!-- Botón de acción principal -->
           <button 
             type="submit" 
@@ -86,7 +90,7 @@
         </form>
       </div>
 
-      <!-- Resto del componente (mensajes de error y resultados) sin cambios -->
+      <!-- Resto del componente (sin cambios) -->
       <div v-if="pivotStore.error" class="mt-4 text-center text-red-600 bg-red-100 p-3 rounded-lg shadow-sm">
         <p><strong>Error:</strong> {{ pivotStore.error }}</p>
       </div>
@@ -119,7 +123,6 @@
 </template>
 
 <script setup>
-// Importamos 'onMounted' de Vue para ejecutar código cuando el componente se carga.
 import { ref, reactive, onMounted } from 'vue';
 import { usePivotStore } from '../stores/pivotStore';
 
@@ -141,11 +144,20 @@ const mensajeCoordinadores = ref('➡ ️ Coordinadores: por favor confirmar fec
 const isPrincipalCopied = ref(false);
 const isCoordinadoresCopied = ref(false);
 
-// ONMOUNTED HOOK: Se ejecuta una sola vez, cuando el componente está listo en el DOM.
-// Es el lugar perfecto para cargar los datos iniciales.
 onMounted(() => {
   pivotStore.cargarSugerencias();
 });
+
+// *** NUEVA FUNCIÓN DE LIMPIEZA ***
+const limpiarFormulario = () => {
+  // Recorremos cada clave (key) en el objeto formData.
+  for (const key in formData) {
+    // Asignamos un string vacío a cada propiedad para limpiar el campo.
+    formData[key] = '';
+  }
+  // También limpiamos el área de resultados para que la UI quede consistente.
+  mensajePrincipal.value = '';
+};
 
 const generarMensajes = async () => {
   let fechaFormateada = '';
